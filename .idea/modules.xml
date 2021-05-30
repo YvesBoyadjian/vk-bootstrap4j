@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/lwjgl/lwjgl.iml" filepath="$PROJECT_DIR$/lwjgl/lwjgl.iml" />
+      <module fileurl="file://$PROJECT_DIR$/lwjgl-glfw/lwjgl-glfw.iml" filepath="$PROJECT_DIR$/lwjgl-glfw/lwjgl-glfw.iml" />
+      <module fileurl="file://$PROJECT_DIR$/lwjgl-vulkan/lwjgl-vulkan.iml" filepath="$PROJECT_DIR$/lwjgl-vulkan/lwjgl-vulkan.iml" />
+      <module fileurl="file://$PROJECT_DIR$/vk-bootstrap/vk-bootstrap.iml" filepath="$PROJECT_DIR$/vk-bootstrap/vk-bootstrap.iml" />
+    </modules>
+  </component>
+</project>

@@ -1,0 +1,15 @@
+package vkbootstrap.example;
+
+import tests.VulkanLibrary;
+import vkbootstrap.VkbDevice;
+import vkbootstrap.VkbInstance;
+import vkbootstrap.VkbSwapchain;
+
+public class Init {
+    public /*GLFWwindow*/long window;
+    public final VulkanLibrary vk_lib = new VulkanLibrary();
+    public VkbInstance instance = new VkbInstance();
+    public /*VkSurfaceKHR*/long surface;
+    public VkbDevice device = new VkbDevice();
+    public final VkbSwapchain swapchain = new VkbSwapchain();
+}
