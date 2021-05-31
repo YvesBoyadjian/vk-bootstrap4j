@@ -13,6 +13,11 @@ public class error_code {
         _Myval = 0;
         _Mycat = new error_category() {
             @Override
+            public String name() {
+                return "default_error";
+            }
+
+            @Override
             public String message(int _Errval) {
                 return String.valueOf(_Errval);
             }
@@ -25,6 +30,11 @@ public class error_code {
         //this = make_error_code(_Errcode); // using ADL
         _Myval = _Errcode;
         _Mycat = new error_category() {
+            @Override
+            public String name() {
+                return "default_error";
+            }
+
             @Override
             public String message(int _Errval) {
                 return String.valueOf(_Errval);

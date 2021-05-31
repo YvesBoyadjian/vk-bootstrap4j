@@ -27,8 +27,12 @@ public class Result<T extends Object> {
 
     // std::error_code associated with the error
     public error_code error() { assert (!m_init); return m_error.type; }
+    // optional VkResult that could of been produced due to the error
+    public /*VkResult*/int vk_result() { assert (!m_init); return m_error.vk_result; }
 
     public boolean not() {
         return !m_init;
     }
+
+    public boolean has_value() { return m_init; }
 }

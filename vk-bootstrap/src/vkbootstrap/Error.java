@@ -12,6 +12,10 @@ public class Error {
         // do nothing
     }
 
+    public Error(error_code error_code) {
+        type = error_code;
+    }
+
     public Error(error_code error_code, int result) {
         type = error_code;
         vk_result = result;

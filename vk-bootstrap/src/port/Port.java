@@ -11,11 +11,26 @@ import static org.lwjgl.system.MemoryUtil.*;
 
 public class Port {
 
+    public static final int UINT32_MAX = (int)0xffffffffl;
+
+    public static final sun.misc.Unsafe UNSAFE = getUnsafeInstance();
+
     public static final IntBuffer datai(List<Integer> listOfInt) {
 
         int nb = listOfInt.size();
         IntBuffer ret = IntBuffer.allocate(nb);
         for( Integer i : listOfInt) {
+            ret.put(i);
+        }
+        ret.flip();
+        return ret;
+    };
+
+    public static final IntBuffer toIntBuffer(int[] arrayOfInt) {
+
+        int nb = arrayOfInt.length;
+        IntBuffer ret = IntBuffer.allocate(nb);
+        for( Integer i : arrayOfInt) {
             ret.put(i);
         }
         ret.flip();
@@ -44,5 +59,37 @@ public class Port {
         pb.flip();
 
         return pb;
+    }
+
+    private static sun.misc.Unsafe getUnsafeInstance() {
+        java.lang.reflect.Field[] fields = sun.misc.Unsafe.class.getDeclaredFields();
+
+        /*
+        Different runtimes use different names for the Unsafe singleton,
+        so we cannot use .getDeclaredField and we scan instead. For example:
+
+        Oracle: theUnsafe
+        PERC : m_unsafe_instance
+        Android: THE_ONE
+        */
+        for (java.lang.reflect.Field field : fields) {
+            if (!field.getType().equals(sun.misc.Unsafe.class)) {
+                continue;
+            }
+
+            int modifiers = field.getModifiers();
+            if (!(java.lang.reflect.Modifier.isStatic(modifiers) && java.lang.reflect.Modifier.isFinal(modifiers))) {
+                continue;
+            }
+
+            try {
+                field.setAccessible(true);
+                return (sun.misc.Unsafe)field.get(null);
+            } catch (Exception ignored) {
+            }
+            break;
+        }
+
+        throw new UnsupportedOperationException("LWJGL requires sun.misc.Unsafe to be available.");
     }
 }

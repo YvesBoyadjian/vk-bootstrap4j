@@ -3,6 +3,7 @@ package vkbootstrap;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.NativeType;
 import org.lwjgl.vulkan.*;
+import port.Port;
 import port.error_code;
 
 import java.io.UnsupportedEncodingException;
@@ -14,6 +15,7 @@ import java.util.Objects;
 import static org.lwjgl.system.MemoryUtil.memAllocPointer;
 import static org.lwjgl.system.MemoryUtil.memFree;
 import static org.lwjgl.vulkan.EXTDebugUtils.*;
+import static org.lwjgl.vulkan.KHRSurface.VK_PRESENT_MODE_FIFO_KHR;
 import static org.lwjgl.vulkan.VK10.*;
 
 public class VkBootstrap {
@@ -182,6 +184,28 @@ public class VkBootstrap {
         return err;
     }
 
+    // Helper for robustly executing the two-call pattern
+    //template <typename T, typename F, typename... Ts>
+    /*218*/public static int get_vector(final List<Long> out, VkbVulkanFunctions.PFN_vkGetSwapchainImagesKHR f, VkDevice ts1, long ts2) {
+        final int[] count = new int[1];
+        /*VkResult*/int err;
+        do {
+            err = f.invoke(ts1,ts2, count, null);
+            if (err != 0) {
+                return err;
+            };
+            //out.resize(count);
+            long[] outArray = new long[count[0]];
+            err = f.invoke(ts1,ts2, count, outArray);
+            //out.resize(count);
+            out.clear();
+            for( int i=0;i<count[0];i++) {
+                out.add(outArray[i]);
+            }
+        } while (err == VK_INCOMPLETE);
+        return err;
+    }
+
     /*234*/ public static List<VkQueueFamilyProperties> get_vector_noerror(VkbVulkanFunctions.PFN_vkGetPhysicalDeviceQueueFamilyProperties f, VkPhysicalDevice ts) {
         final int[] count = new int[1];
         f.invoke(ts, count, null);
@@ -301,6 +325,16 @@ public class VkBootstrap {
         structure.pNext(structs.get(0).address());
     }
 
+    //template <typename T>
+    /*360*/ public static <T extends VkSwapchainCreateInfoKHR> void setup_pNext_chain(T structure, final List<VkBaseOutStructure> structs) {
+        structure.pNext(0);
+        if (structs.size() <= 0) return;
+        for (int i = 0; i < structs.size() - 1; i++) {
+            structs.get(i).pNext(structs.get(i + 1));
+        }
+        structure.pNext(structs.get(0).address());
+    }
+
     /*368*/ public static final String validation_layer_name = "VK_LAYER_KHRONOS_validation";
 
     static final InstanceErrorCategory instance_error_category = new InstanceErrorCategory();
@@ -365,6 +399,13 @@ public class VkBootstrap {
 
         return true; // TODO
     }
+    // Finds the first queue which supports the desired operations. Returns QUEUE_INDEX_MAX_VALUE if none is found
+    /*931*/ public static int get_first_queue_index(final List<VkQueueFamilyProperties> families, /*VkQueueFlags*/int desired_flags) {
+        for (int i = 0; i < (int)(families.size()); i++) {
+            if ((families.get(i).queueFlags() & desired_flags) != 0) return i;
+        }
+        return QUEUE_INDEX_MAX_VALUE;
+    }
 
     // Finds the queue which is separate from the graphics queue and has the desired flag and not the
     // undesired flag, but will select it if no better options are available compute support. Returns
@@ -413,5 +454,97 @@ public class VkBootstrap {
             if (presentSupport[0] == VK_TRUE) return i;
         }
         return QUEUE_INDEX_MAX_VALUE;
+    }
+
+    /*1521*/ static final SurfaceSupportErrorCategory surface_support_error_category = new SurfaceSupportErrorCategory();
+
+    /*1523*/ public static error_code make_error_code(VkbSurfaceSupportError surface_support_error) {
+        return new error_code( (int)(surface_support_error.ordinal()), surface_support_error_category );
+    }
+
+    /*1527*/
+    static Result<VkbSurfaceSupportDetails> query_surface_support_details(VkPhysicalDevice phys_device, /*VkSurfaceKHR*/long surface) {
+        if (surface == VK_NULL_HANDLE) return new Result(make_error_code(VkbSurfaceSupportError.surface_handle_null));
+
+        final VkSurfaceCapabilitiesKHR capabilities = VkSurfaceCapabilitiesKHR.create();
+        /*VkResult*/int res = vulkan_functions().fp_vkGetPhysicalDeviceSurfaceCapabilitiesKHR.invoke(
+                phys_device, surface, capabilities);
+        if (res != VK_SUCCESS) {
+            return new Result( make_error_code(VkbSurfaceSupportError.failed_get_surface_capabilities), res );
+        }
+
+        final List<VkSurfaceFormatKHR> formats = new ArrayList<>();
+        final List</*VkPresentModeKHR*/Integer> present_modes = new ArrayList<>();
+
+        var formats_ret = get_vector/*<VkSurfaceFormatKHR>*/(
+        formats, vulkan_functions().fp_vkGetPhysicalDeviceSurfaceFormatsKHR, phys_device, surface);
+        if (formats_ret != VK_SUCCESS)
+            return new Result( make_error_code(VkbSurfaceSupportError.failed_enumerate_surface_formats), formats_ret );
+        var present_modes_ret = get_vector/*<VkPresentModeKHR>*/(
+        present_modes, vulkan_functions().fp_vkGetPhysicalDeviceSurfacePresentModesKHR, phys_device, surface);
+        if (present_modes_ret != VK_SUCCESS)
+            return new Result( make_error_code(VkbSurfaceSupportError.failed_enumerate_present_modes), present_modes_ret );
+
+        return new Result(new VkbSurfaceSupportDetails( capabilities, formats, present_modes ));
+    }
+
+    /*1552*/
+    static VkSurfaceFormatKHR find_surface_format(VkPhysicalDevice phys_device,
+                                                  final List<VkSurfaceFormatKHR> available_formats,
+                                                  final List<VkSurfaceFormatKHR> desired_formats,
+            /*VkFormatFeatureFlags*/int feature_flags) {
+        for (var desired_format : desired_formats) {
+            for (var available_format : available_formats) {
+                // finds the first format that is desired and available
+                if (desired_format.format() == available_format.format() &&
+                        desired_format.colorSpace() == available_format.colorSpace()) {
+                    final VkFormatProperties properties = VkFormatProperties.create();
+                    vulkan_functions().fp_vkGetPhysicalDeviceFormatProperties.invoke(
+                            phys_device, desired_format.format(), properties);
+                    if ((properties.optimalTilingFeatures() & feature_flags) == feature_flags)
+                        return desired_format;
+                }
+            }
+        }
+
+        // use the first available one if any desired formats aren't found
+        return available_formats.get(0);
+    }
+
+    /*1574*/ public static /*VkPresentModeKHR*/int find_present_mode(final List</*VkPresentModeKHR*/Integer> available_resent_modes,
+                                       final List</*VkPresentModeKHR*/Integer> desired_present_modes) {
+        for (var desired_pm : desired_present_modes) {
+            for (var available_pm : available_resent_modes) {
+                // finds the first present mode that is desired and available
+                if (Objects.equals(desired_pm , available_pm)) return desired_pm;
+            }
+        }
+        // only present mode required, use as a fallback
+        return VK_PRESENT_MODE_FIFO_KHR;
+    }
+
+    /*1589*/
+    static VkExtent2D find_extent(VkSurfaceCapabilitiesKHR capabilities, int desired_width, int desired_height) {
+        if (capabilities.currentExtent().width() != Port.UINT32_MAX) {
+            return capabilities.currentExtent();
+        } else {
+            VkExtent2D actualExtent = VkExtent2D.create();//{ desired_width, desired_height };
+            actualExtent.width(desired_width);
+            actualExtent.height(desired_height);
+
+            actualExtent.width( Math.max(capabilities.minImageExtent().width(),
+                    Math.min(capabilities.maxImageExtent().width(), actualExtent.width())));
+            actualExtent.height( Math.max(capabilities.minImageExtent().height(),
+                    Math.min(capabilities.maxImageExtent().height(), actualExtent.height())));
+
+            return actualExtent;
+        }
+    }
+
+    /*1605*/ public static void destroy_swapchain(VkbSwapchain swapchain) {
+        if (swapchain.device != null/*VK_NULL_HANDLE*/ && swapchain.swapchain[0] != VK_NULL_HANDLE) {
+            vulkan_functions().fp_vkDestroySwapchainKHR.invoke(
+                    swapchain.device, swapchain.swapchain[0], swapchain.allocation_callbacks);
+        }
     }
 }

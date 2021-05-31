@@ -11,5 +11,5 @@ public class Init {
     public VkbInstance instance = new VkbInstance();
     public /*VkSurfaceKHR*/long surface;
     public VkbDevice device = new VkbDevice();
-    public final VkbSwapchain swapchain = new VkbSwapchain();
+    public VkbSwapchain swapchain = new VkbSwapchain();
 }

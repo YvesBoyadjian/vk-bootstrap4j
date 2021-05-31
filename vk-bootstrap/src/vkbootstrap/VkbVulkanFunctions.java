@@ -51,6 +51,9 @@ public class VkbVulkanFunctions {
     public interface PFN_vkGetPhysicalDeviceFeatures2 {
         void invoke(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures2 pFeatures);
     }
+    public interface PFN_vkGetPhysicalDeviceFormatProperties {
+        void invoke(VkPhysicalDevice physicalDevice, int format, VkFormatProperties pFormatProperties);
+    }
 
     public interface PFN_vkGetPhysicalDeviceProperties {
         void invoke(VkPhysicalDevice physicalDevice, VkPhysicalDeviceProperties pProperties);
@@ -84,6 +87,22 @@ public class VkbVulkanFunctions {
         int invoke(VkPhysicalDevice physicalDevice, long surface, int[] pPresentModeCount, int[] pPresentModes);
     }
 
+    public interface PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR {
+        int invoke(VkPhysicalDevice physicalDevice, long surface, VkSurfaceCapabilitiesKHR pSurfaceCapabilities);
+    }
+
+    public interface PFN_vkCreateSwapchainKHR {
+        int invoke(VkDevice device, VkSwapchainCreateInfoKHR pCreateInfo, VkAllocationCallbacks pAllocator, long[] pSwapchain);
+    }
+
+    public interface PFN_vkDestroySwapchainKHR {
+        void invoke(VkDevice device, long swapchain, VkAllocationCallbacks pAllocator);
+    }
+
+    public interface PFN_vkGetSwapchainImagesKHR {
+        int invoke(VkDevice device, long swapchain, int[] pSwapchainImageCount, long[] pSwapchainImages);
+    }
+
     /*100*/ boolean load_vulkan(long fp_vkGetInstanceProcAddr) {
         ptr_vkGetInstanceProcAddr = new PFN_vkGetInstanceProcAddr() {
             public long invoke(VkInstance instance, CharSequence pName) {
@@ -104,6 +123,7 @@ public class VkbVulkanFunctions {
     /*132*/ PFN_vkEnumeratePhysicalDevices fp_vkEnumeratePhysicalDevices = null;
     /*133*/ PFN_vkGetPhysicalDeviceFeatures fp_vkGetPhysicalDeviceFeatures = null;
     /*134*/ PFN_vkGetPhysicalDeviceFeatures2 fp_vkGetPhysicalDeviceFeatures2 = null;
+    /*135*/ PFN_vkGetPhysicalDeviceFormatProperties fp_vkGetPhysicalDeviceFormatProperties = null;
     /*137*/ PFN_vkGetPhysicalDeviceProperties fp_vkGetPhysicalDeviceProperties = null;
     /*139*/ PFN_vkGetPhysicalDeviceQueueFamilyProperties fp_vkGetPhysicalDeviceQueueFamilyProperties = null;
     /*141*/ PFN_vkGetPhysicalDeviceMemoryProperties fp_vkGetPhysicalDeviceMemoryProperties = null;
@@ -114,6 +134,11 @@ public class VkbVulkanFunctions {
     /*154*/ PFN_vkGetPhysicalDeviceSurfaceSupportKHR fp_vkGetPhysicalDeviceSurfaceSupportKHR = null;
     /*155*/ PFN_vkGetPhysicalDeviceSurfaceFormatsKHR fp_vkGetPhysicalDeviceSurfaceFormatsKHR = null;
     /*156*/ PFN_vkGetPhysicalDeviceSurfacePresentModesKHR fp_vkGetPhysicalDeviceSurfacePresentModesKHR = null;
+    /*157*/ PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR fp_vkGetPhysicalDeviceSurfaceCapabilitiesKHR = null;
+    /*158*/ PFN_vkCreateSwapchainKHR fp_vkCreateSwapchainKHR = null;
+
+    /*159*/ PFN_vkDestroySwapchainKHR fp_vkDestroySwapchainKHR = null;
+    /*160*/ PFN_vkGetSwapchainImagesKHR fp_vkGetSwapchainImagesKHR = null;
 
     /*115*/ void init_pre_instance_funcs() {
         /*116*/ //get_proc_addr(fp_vkEnumerateInstanceExtensionProperties, "vkEnumerateInstanceExtensionProperties");
@@ -132,7 +157,7 @@ public class VkbVulkanFunctions {
             }
         };
 
-        //get_proc_addr(fp_vkEnumerateInstanceVersion, "vkEnumerateInstanceVersion");
+        /**/ //get_proc_addr(fp_vkEnumerateInstanceVersion, "vkEnumerateInstanceVersion");
         fp_vkEnumerateInstanceVersion = new PFN_vkEnumerateInstanceVersion() {
             @Override
             public int invoke(int[] pApiVersion) {
@@ -183,6 +208,14 @@ public class VkbVulkanFunctions {
             @Override
             public void invoke(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures2 pFeatures) {
                 VK11.vkGetPhysicalDeviceFeatures2(physicalDevice,pFeatures);
+            }
+        };
+
+        /*182*/ //get_proc_addr(fp_vkGetPhysicalDeviceFormatProperties, "vkGetPhysicalDeviceFormatProperties");
+        fp_vkGetPhysicalDeviceFormatProperties = new PFN_vkGetPhysicalDeviceFormatProperties() {
+            @Override
+            public void invoke(VkPhysicalDevice physicalDevice, int format, VkFormatProperties pFormatProperties) {
+                VK10.vkGetPhysicalDeviceFormatProperties(physicalDevice,format,pFormatProperties);
             }
         };
 
@@ -251,6 +284,38 @@ public class VkbVulkanFunctions {
             @Override
             public int invoke(VkPhysicalDevice physicalDevice, long surface, int[] pPresentModeCount, int[] pPresentModes) {
                 return KHRSurface.vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice,surface,pPresentModeCount,pPresentModes);
+            }
+        };
+
+        /*204*/ //get_proc_addr(fp_vkGetPhysicalDeviceSurfaceCapabilitiesKHR, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
+        fp_vkGetPhysicalDeviceSurfaceCapabilitiesKHR = new PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR() {
+            @Override
+            public int invoke(VkPhysicalDevice physicalDevice, long surface, VkSurfaceCapabilitiesKHR pSurfaceCapabilities) {
+                return KHRSurface.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice,surface,pSurfaceCapabilities);
+            }
+        };
+
+        /*205*/ //get_proc_addr(fp_vkCreateSwapchainKHR, "vkCreateSwapchainKHR");
+        fp_vkCreateSwapchainKHR = new PFN_vkCreateSwapchainKHR() {
+            @Override
+            public int invoke(VkDevice device, VkSwapchainCreateInfoKHR pCreateInfo, VkAllocationCallbacks pAllocator, long[] pSwapchain) {
+                return KHRSwapchain.vkCreateSwapchainKHR(device,pCreateInfo,pAllocator,pSwapchain);
+            }
+        };
+
+        /*206*/ //get_proc_addr(fp_vkDestroySwapchainKHR, "vkDestroySwapchainKHR");
+        fp_vkDestroySwapchainKHR = new PFN_vkDestroySwapchainKHR() {
+            @Override
+            public void invoke(VkDevice device, long swapchain, VkAllocationCallbacks pAllocator) {
+                KHRSwapchain.vkDestroySwapchainKHR(device,swapchain,pAllocator);
+            }
+        };
+
+        /*207*/ //get_proc_addr(fp_vkGetSwapchainImagesKHR, "vkGetSwapchainImagesKHR");
+        fp_vkGetSwapchainImagesKHR = new PFN_vkGetSwapchainImagesKHR() {
+            @Override
+            public int invoke(VkDevice device, long swapchain, int[] pSwapchainImageCount, long[] pSwapchainImages) {
+                return KHRSwapchain.vkGetSwapchainImagesKHR(device,swapchain,pSwapchainImageCount,pSwapchainImages);
             }
         };
     }

@@ -1,10 +1,7 @@
 package vkbootstrap.example;
 
 import tests.Common;
-import vkbootstrap.VkbDeviceBuilder;
-import vkbootstrap.VkbInstanceBuilder;
-import vkbootstrap.VkbPhysicalDevice;
-import vkbootstrap.VkbPhysicalDeviceSelector;
+import vkbootstrap.*;
 
 public class Triangle {
     public static void main(String[] args) {
@@ -12,6 +9,7 @@ public class Triangle {
         final RenderData render_data = new RenderData();
 
         if (0 != device_initialization (init)) return;
+        if (0 != create_swapchain (init)) return;
     }
 
     static int device_initialization (Init init) {
@@ -46,6 +44,19 @@ public class Triangle {
         init.device = device_ret.value ();
         init.vk_lib.init(init.device.device[0]);
 
+        return 0;
+    }
+
+    static int create_swapchain (final Init init) {
+
+        final VkbSwapchainBuilder swapchain_builder = new VkbSwapchainBuilder( init.device );
+        var swap_ret = swapchain_builder.set_old_swapchain (init.swapchain).build ();
+        if (swap_ret.not()) {
+            System.out.println( swap_ret.error().message () + " " + swap_ret.vk_result() );
+            return -1;
+        }
+        VkBootstrap.destroy_swapchain(init.swapchain);
+        init.swapchain = swap_ret.value ();
         return 0;
     }
 }
