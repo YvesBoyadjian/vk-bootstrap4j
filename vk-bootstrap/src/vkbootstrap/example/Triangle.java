@@ -1,13 +1,26 @@
 package vkbootstrap.example;
 
+import org.lwjgl.BufferUtils;
 import org.lwjgl.vulkan.*;
+import port.Port;
 import tests.Common;
 import vkbootstrap.*;
 
+import javax.management.RuntimeErrorException;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.util.List;
+
+import static org.lwjgl.system.MemoryUtil.memUTF8;
 import static org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 import static org.lwjgl.vulkan.VK10.*;
 
 public class Triangle {
+
+    static final String EXAMPLE_BUILD_DIRECTORY = "vk-bootstrap/src/vkbootstrap/example/shaders";
+
     public static void main(String[] args) {
         final Init init = new Init();
         final RenderData render_data = new RenderData();
@@ -16,6 +29,7 @@ public class Triangle {
         if (0 != create_swapchain (init)) return;
         if (0 != get_queues (init, render_data)) return;
         if (0 != create_render_pass (init, render_data)) return;
+        if (0 != create_graphics_pipeline (init, render_data)) return;
     }
 
     static int device_initialization (Init init) {
@@ -128,6 +142,180 @@ public class Triangle {
             System.out.println( "failed to create render pass");
             return -1; // failed to create render pass!
         }
+        return 0;
+    }
+
+    static ByteBuffer readFile (final String filename) {
+        //std::ifstream file (filename, std::ios::ate | std::ios::binary);
+
+        ByteBuffer buffer;
+        try {
+            FileInputStream fis = new FileInputStream(filename);
+            FileChannel fc = fis.getChannel();
+            buffer = fc.map(FileChannel.MapMode.READ_ONLY, 0, fc.size());
+            fc.close();
+            fis.close();
+        } catch (IOException e) {
+            throw new RuntimeException("failed to open file!");
+        }
+        return buffer;
+    }
+
+    static /*VkShaderModule*/long createShaderModule (final Init init, final ByteBuffer code) {
+        final VkShaderModuleCreateInfo create_info = VkShaderModuleCreateInfo.create();
+        create_info.sType( VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
+        //create_info.codeSize( code.size ()); java port
+        create_info.pCode( code );
+
+        final /*VkShaderModule*/long[] shaderModule = new long[1];
+        if (init.arrow_operator().vkCreateShaderModule.invoke(init.device.device[0], create_info, null, shaderModule) != VK_SUCCESS) {
+            return VK_NULL_HANDLE; // failed to create shader module
+        }
+
+        return shaderModule[0];
+    }
+
+    static int create_graphics_pipeline (final Init init, final RenderData data) {
+        var vert_code = readFile(EXAMPLE_BUILD_DIRECTORY + "/vert.spv");
+        var frag_code = readFile(EXAMPLE_BUILD_DIRECTORY + "/frag.spv");
+
+        /*VkShaderModule*/long vert_module = createShaderModule (init, vert_code);
+        /*VkShaderModule*/long frag_module = createShaderModule (init, frag_code);
+        if (vert_module == VK_NULL_HANDLE || frag_module == VK_NULL_HANDLE) {
+            System.out.println( "failed to create shader module");
+            return -1; // failed to create shader modules
+        }
+
+        final VkPipelineShaderStageCreateInfo.Buffer shader_stages = VkPipelineShaderStageCreateInfo.create(2); // java port
+
+        final VkPipelineShaderStageCreateInfo vert_stage_info = shader_stages.get(0); // java port
+        vert_stage_info.sType( VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
+        vert_stage_info.stage( VK_SHADER_STAGE_VERTEX_BIT);
+        vert_stage_info.module( vert_module);
+        vert_stage_info.pName( memUTF8("main"));
+
+        final VkPipelineShaderStageCreateInfo frag_stage_info = shader_stages.get(1); // java port
+        frag_stage_info.sType( VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
+        frag_stage_info.stage( VK_SHADER_STAGE_FRAGMENT_BIT);
+        frag_stage_info.module( frag_module);
+        frag_stage_info.pName( memUTF8("main"));
+
+        //VkPipelineShaderStageCreateInfo shader_stages[] = { vert_stage_info, frag_stage_info }; java port
+
+        final VkPipelineVertexInputStateCreateInfo vertex_input_info = VkPipelineVertexInputStateCreateInfo.create();
+        vertex_input_info.sType( VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO);
+        //vertex_input_info.vertexBindingDescriptionCount( 0); java port
+        VkVertexInputBindingDescription.Buffer dummy1 = VkVertexInputBindingDescription.create(0); // java port
+        vertex_input_info.pVertexBindingDescriptions( dummy1); // java port
+        //vertex_input_info.vertexAttributeDescriptionCount( 0); java port
+        VkVertexInputAttributeDescription.Buffer dummy2 = VkVertexInputAttributeDescription.create(0); // java port
+        vertex_input_info.pVertexAttributeDescriptions( dummy2); // java port
+
+        final VkPipelineInputAssemblyStateCreateInfo input_assembly = VkPipelineInputAssemblyStateCreateInfo.create();
+        input_assembly.sType( VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO);
+        input_assembly.topology( VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+        input_assembly.primitiveRestartEnable( VK_FALSE != 0);
+
+        final VkViewport.Buffer viewport_buf = VkViewport.create(1);
+        final VkViewport viewport = viewport_buf.get(0);
+        viewport.x( 0.0f);
+        viewport.y( 0.0f);
+        viewport.width( (float)init.swapchain.extent.width());
+        viewport.height( (float)init.swapchain.extent.height());
+        viewport.minDepth( 0.0f);
+        viewport.maxDepth( 1.0f);
+
+        final VkRect2D.Buffer scissor_buf = VkRect2D.create(1);
+        final VkRect2D scissor = scissor_buf.get(0);
+        final VkOffset2D dummy = VkOffset2D.create(); dummy.x(0); dummy.y(0);
+        scissor.offset( dummy);
+        scissor.extent( init.swapchain.extent);
+
+        final VkPipelineViewportStateCreateInfo viewport_state = VkPipelineViewportStateCreateInfo.create();
+        viewport_state.sType( VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO);
+        viewport_state.viewportCount( 1);
+        viewport_state.pViewports( viewport_buf);
+        viewport_state.scissorCount( 1);
+        viewport_state.pScissors( scissor_buf);
+
+        final VkPipelineRasterizationStateCreateInfo rasterizer = VkPipelineRasterizationStateCreateInfo.create();
+        rasterizer.sType( VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO);
+        rasterizer.depthClampEnable( VK_FALSE != 0);
+        rasterizer.rasterizerDiscardEnable( VK_FALSE != 0);
+        rasterizer.polygonMode( VK_POLYGON_MODE_FILL);
+        rasterizer.lineWidth( 1.0f);
+        rasterizer.cullMode( VK_CULL_MODE_BACK_BIT);
+        rasterizer.frontFace( VK_FRONT_FACE_CLOCKWISE);
+        rasterizer.depthBiasEnable( VK_FALSE != 0);
+
+        final VkPipelineMultisampleStateCreateInfo multisampling = VkPipelineMultisampleStateCreateInfo.create();
+        multisampling.sType( VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
+        multisampling.sampleShadingEnable( VK_FALSE != 0);
+        multisampling.rasterizationSamples( VK_SAMPLE_COUNT_1_BIT);
+
+        final VkPipelineColorBlendAttachmentState.Buffer colorBlendAttachment_buf = VkPipelineColorBlendAttachmentState.create(1);
+        final VkPipelineColorBlendAttachmentState colorBlendAttachment = colorBlendAttachment_buf.get(0);
+        colorBlendAttachment.colorWriteMask( VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT);
+        colorBlendAttachment.blendEnable( VK_FALSE != 0);
+
+        final VkPipelineColorBlendStateCreateInfo color_blending = VkPipelineColorBlendStateCreateInfo.create();
+        color_blending.sType( VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO);
+        color_blending.logicOpEnable( VK_FALSE != 0);
+        color_blending.logicOp( VK_LOGIC_OP_COPY);
+        //color_blending.attachmentCount( 1); java port
+        color_blending.pAttachments( colorBlendAttachment_buf);
+        color_blending.blendConstants(0, 0.0f);
+        color_blending.blendConstants(1, 0.0f);
+        color_blending.blendConstants(2, 0.0f);
+        color_blending.blendConstants(3, 0.0f);
+
+        final VkPipelineLayoutCreateInfo pipeline_layout_info = VkPipelineLayoutCreateInfo.create();
+        pipeline_layout_info.sType( VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO);
+        //pipeline_layout_info.setLayoutCount( 0); java port
+        pipeline_layout_info.pSetLayouts(BufferUtils.createLongBuffer(0)); // java port
+        //pipeline_layout_info.pushConstantRangeCount( 0); java port
+        VkPushConstantRange.Buffer dummy3 = VkPushConstantRange.create(0); // java port
+        pipeline_layout_info.pPushConstantRanges( dummy3); // java port
+
+        if (init.arrow_operator().vkCreatePipelineLayout.invoke (
+                init.device.device[0], pipeline_layout_info, null, data.pipeline_layout) != VK_SUCCESS) {
+            System.out.println( "failed to create pipeline layout");
+            return -1; // failed to create pipeline layout
+        }
+
+        final int[] dynamic_states = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+        final VkPipelineDynamicStateCreateInfo dynamic_info = VkPipelineDynamicStateCreateInfo.create();
+        dynamic_info.sType( VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO);
+        //dynamic_info.dynamicStateCount( dynamic_states.length); java port
+        dynamic_info.pDynamicStates( Port.toIntBuffer(dynamic_states));
+
+        final VkGraphicsPipelineCreateInfo.Buffer pipeline_info_buf = VkGraphicsPipelineCreateInfo.create(1);
+        final VkGraphicsPipelineCreateInfo pipeline_info = pipeline_info_buf.get(0);
+        pipeline_info.sType( VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO);
+        //pipeline_info.stageCount( 2); java port
+        pipeline_info.pStages( shader_stages);
+        pipeline_info.pVertexInputState( vertex_input_info);
+        pipeline_info.pInputAssemblyState( input_assembly);
+        pipeline_info.pViewportState( viewport_state);
+        pipeline_info.pRasterizationState( rasterizer);
+        pipeline_info.pMultisampleState( multisampling);
+        pipeline_info.pColorBlendState( color_blending);
+        pipeline_info.pDynamicState( dynamic_info);
+        pipeline_info.layout( data.pipeline_layout[0]);
+        pipeline_info.renderPass( data.render_pass[0]);
+        pipeline_info.subpass( 0);
+        pipeline_info.basePipelineHandle( VK_NULL_HANDLE);
+
+        if (init.arrow_operator().vkCreateGraphicsPipelines.invoke (
+                init.device.device[0], VK_NULL_HANDLE,/* 1,*/ pipeline_info_buf, null, data.graphics_pipeline) != VK_SUCCESS) {
+            System.out.println( "failed to create pipline");
+            return -1; // failed to create graphics pipeline
+        }
+
+        init.arrow_operator().vkDestroyShaderModule.invoke (init.device.device[0], frag_module, null);
+        init.arrow_operator().vkDestroyShaderModule.invoke (init.device.device[0], vert_module, null);
         return 0;
     }
 }

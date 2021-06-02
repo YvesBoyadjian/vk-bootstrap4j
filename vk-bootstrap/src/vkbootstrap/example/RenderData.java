@@ -15,8 +15,8 @@ public class RenderData {
     public final List</*VkFramebuffer*/Integer> framebuffers = new ArrayList<>();
 
     public /*VkRenderPass*/final long[] render_pass = new long[1];
-    public /*VkPipelinLayout*/int pipeline_layout;
-    public /*VkPipeline*/int graphics_pipeline;
+    public /*VkPipelinLayout*/final long[] pipeline_layout = new long[1];
+    public /*VkPipeline*/final long[] graphics_pipeline = new long[1];
 
     public /*VkCommandPool*/int command_pool;
     public final List<VkCommandBuffer> command_buffers = new ArrayList<>();

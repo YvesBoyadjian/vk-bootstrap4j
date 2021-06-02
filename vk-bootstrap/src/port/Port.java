@@ -1,5 +1,6 @@
 package port;
 
+import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
 
 import java.nio.ByteBuffer;
@@ -18,7 +19,7 @@ public class Port {
     public static final IntBuffer datai(List<Integer> listOfInt) {
 
         int nb = listOfInt.size();
-        IntBuffer ret = IntBuffer.allocate(nb);
+        IntBuffer ret = BufferUtils.createIntBuffer(nb);
         for( Integer i : listOfInt) {
             ret.put(i);
         }
@@ -29,7 +30,7 @@ public class Port {
     public static final IntBuffer toIntBuffer(int[] arrayOfInt) {
 
         int nb = arrayOfInt.length;
-        IntBuffer ret = IntBuffer.allocate(nb);
+        IntBuffer ret = BufferUtils.createIntBuffer(nb);
         for( Integer i : arrayOfInt) {
             ret.put(i);
         }
@@ -40,7 +41,7 @@ public class Port {
     public static final FloatBuffer dataf(List<Float> listOfFloat) {
 
         int nb = listOfFloat.size();
-        FloatBuffer ret = memAllocFloat(nb);
+        FloatBuffer ret = BufferUtils.createFloatBuffer(nb);
         for( Float f : listOfFloat) {
             ret.put(f);
         }
