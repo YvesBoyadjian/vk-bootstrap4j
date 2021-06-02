@@ -75,6 +75,10 @@ public class VkbVulkanFunctions {
         int invoke(VkPhysicalDevice physicalDevice, CharSequence pLayerName, int[] pPropertyCount, org.lwjgl.vulkan.VkExtensionProperties.Buffer pProperties);
     }
 
+    public interface PFN_vkGetDeviceQueue {
+        void invoke(VkDevice device, int queueFamilyIndex, int queueIndex, final VkQueue[] pQueue);
+    }
+
     public interface PFN_vkGetPhysicalDeviceSurfaceSupportKHR {
         int invoke(VkPhysicalDevice physicalDevice, int queueFamilyIndex, long surface, int[] pSupported);
     }
@@ -130,6 +134,7 @@ public class VkbVulkanFunctions {
 
     /*145*/ PFN_vkCreateDevice fp_vkCreateDevice = null;
     /*147*/ PFN_vkEnumerateDeviceExtensionProperties fp_vkEnumerateDeviceExtensionProperties = null;
+    /*148*/ PFN_vkGetDeviceQueue fp_vkGetDeviceQueue = null;
 
     /*154*/ PFN_vkGetPhysicalDeviceSurfaceSupportKHR fp_vkGetPhysicalDeviceSurfaceSupportKHR = null;
     /*155*/ PFN_vkGetPhysicalDeviceSurfaceFormatsKHR fp_vkGetPhysicalDeviceSurfaceFormatsKHR = null;
@@ -264,6 +269,18 @@ public class VkbVulkanFunctions {
                 return VK10.vkEnumerateDeviceExtensionProperties(physicalDevice,pLayerName,pPropertyCount,pProperties);
             }
         };
+
+        /*195*/ //get_proc_addr(fp_vkGetDeviceQueue, "vkGetDeviceQueue");
+        fp_vkGetDeviceQueue = new PFN_vkGetDeviceQueue() {
+            @Override
+            public void invoke(VkDevice device, int queueFamilyIndex, int queueIndex, final VkQueue[] pQueue) {
+                PointerBuffer pb = memAllocPointer(1);
+                VK10.vkGetDeviceQueue(device,queueFamilyIndex,queueIndex,pb);
+                pQueue[0] = new VkQueue(pb.get(0),device);
+                memFree(pb);
+            }
+        };
+
         /*201*/ //get_proc_addr(fp_vkGetPhysicalDeviceSurfaceSupportKHR, "vkGetPhysicalDeviceSurfaceSupportKHR");
         fp_vkGetPhysicalDeviceSurfaceSupportKHR = new PFN_vkGetPhysicalDeviceSurfaceSupportKHR() {
             @Override

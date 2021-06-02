@@ -14,7 +14,7 @@ public class RenderData {
     public final List</*VkImageView*/Integer> swapchain_image_views = new ArrayList<>();
     public final List</*VkFramebuffer*/Integer> framebuffers = new ArrayList<>();
 
-    public /*VkRenderPass*/int render_pass;
+    public /*VkRenderPass*/final long[] render_pass = new long[1];
     public /*VkPipelinLayout*/int pipeline_layout;
     public /*VkPipeline*/int graphics_pipeline;
 

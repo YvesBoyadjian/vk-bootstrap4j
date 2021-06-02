@@ -456,6 +456,12 @@ public class VkBootstrap {
         return QUEUE_INDEX_MAX_VALUE;
     }
 
+    /*1357*/ public static VkQueue get_queue(VkDevice device, int family) {
+        final VkQueue[] out_queue = new VkQueue[1];
+        vulkan_functions().fp_vkGetDeviceQueue.invoke(device, family, 0, out_queue);
+        return out_queue[0];
+    }
+
     /*1521*/ static final SurfaceSupportErrorCategory surface_support_error_category = new SurfaceSupportErrorCategory();
 
     /*1523*/ public static error_code make_error_code(VkbSurfaceSupportError surface_support_error) {

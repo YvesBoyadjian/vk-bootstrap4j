@@ -2,6 +2,7 @@ package vkbootstrap;
 
 import org.lwjgl.vulkan.VkAllocationCallbacks;
 import org.lwjgl.vulkan.VkDevice;
+import org.lwjgl.vulkan.VkQueue;
 import org.lwjgl.vulkan.VkQueueFamilyProperties;
 import port.error_code;
 
@@ -45,5 +46,11 @@ public class VkbDevice {
                 return new Result<Integer>( new error_code(VkbQueueError.invalid_queue_family_index.ordinal()));
         }
         return new Result(index);
+    }
+
+    /*1363*/ public Result<VkQueue> get_queue(VkbQueueType type) {
+        var index = get_queue_index(type);
+        if (!index.has_value()) return new Result(index.error());
+        return new Result(VkBootstrap.get_queue(device[0], index.value()));
     }
 }
