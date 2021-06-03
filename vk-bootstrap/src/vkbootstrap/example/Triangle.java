@@ -13,6 +13,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.List;
 
+import static org.lwjgl.glfw.GLFW.glfwPollEvents;
+import static org.lwjgl.glfw.GLFW.glfwWindowShouldClose;
 import static org.lwjgl.system.MemoryUtil.memUTF8;
 import static org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 import static org.lwjgl.vulkan.VK10.*;
@@ -20,6 +22,8 @@ import static org.lwjgl.vulkan.VK10.*;
 public class Triangle {
 
     static final String EXAMPLE_BUILD_DIRECTORY = "vk-bootstrap/src/vkbootstrap/example/shaders";
+
+    static final int MAX_FRAMES_IN_FLIGHT = 2;
 
     public static void main(String[] args) {
         final Init init = new Init();
@@ -32,6 +36,17 @@ public class Triangle {
         if (0 != create_graphics_pipeline (init, render_data)) return;
         if (0 != create_framebuffers (init, render_data)) return;
         if (0 != create_command_pool (init, render_data)) return;
+        if (0 != create_command_buffers (init, render_data)) return;
+        if (0 != create_sync_objects (init, render_data)) return;
+
+        while (!glfwWindowShouldClose (init.window)) {
+            glfwPollEvents ();
+            int res = draw_frame (init, render_data);
+            if (res != 0) {
+                System.out.println( "failed to draw frame ");
+                return;
+            }
+        }
     }
 
     static int device_initialization (Init init) {
@@ -358,6 +373,106 @@ public class Triangle {
             System.out.println( "failed to create command pool");
             return -1; // failed to create command pool
         }
+        return 0;
+    }
+
+    static int create_command_buffers (final Init init, final RenderData data) {
+        //data.command_buffers.resize (data.framebuffers.size ()); java port
+
+        final VkCommandBufferAllocateInfo allocInfo = VkCommandBufferAllocateInfo.create();
+        allocInfo.sType( VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO);
+        allocInfo.commandPool( data.command_pool[0]);
+        allocInfo.level( VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+        allocInfo.commandBufferCount( (int)/*data.command_buffers.size ()*/data.framebuffers.size ()); // java port
+
+        if (init.arrow_operator().vkAllocateCommandBuffers.invoke (init.device.device[0], allocInfo, data.command_buffers, data.framebuffers.size ()) != VK_SUCCESS) {
+            return -1; // failed to allocate command buffers;
+        }
+
+        for (int i = 0; i < data.command_buffers.size (); i++) {
+            final VkCommandBufferBeginInfo begin_info = VkCommandBufferBeginInfo.create();
+            begin_info.sType( VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO);
+
+            if (init.arrow_operator().vkBeginCommandBuffer.invoke (data.command_buffers.get(i), begin_info) != VK_SUCCESS) {
+                return -1; // failed to begin recording command buffer
+            }
+
+            final VkRenderPassBeginInfo render_pass_info = VkRenderPassBeginInfo.create();
+            render_pass_info.sType( VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
+            render_pass_info.renderPass( data.render_pass[0]);
+            render_pass_info.framebuffer( data.framebuffers.get(i));
+            VkOffset2D dummy = VkOffset2D.create();dummy.x( 0); dummy.y( 0);
+            render_pass_info.renderArea().offset( dummy );
+            render_pass_info.renderArea().extent( init.swapchain.extent);
+            VkClearValue.Buffer clearColor = VkClearValue.create(1);
+            VkClearColorValue dummy2 = VkClearColorValue.create();
+            dummy2.float32(0,0.0f);
+            dummy2.float32(1,0.0f);
+            dummy2.float32(2,0.0f);
+            dummy2.float32(3,1.0f);
+            clearColor.get(0).color(dummy2);
+            //render_pass_info.clearValueCount( 1); java port
+            render_pass_info.pClearValues ( clearColor);
+
+            final VkViewport.Buffer viewport = VkViewport.create(1);
+            viewport.x( 0.0f);
+            viewport.y( 0.0f);
+            viewport.width( (float)init.swapchain.extent.width());
+            viewport.height( (float)init.swapchain.extent.height());
+            viewport.minDepth( 0.0f);
+            viewport.maxDepth( 1.0f);
+
+            final VkRect2D.Buffer scissor = VkRect2D.create(1);
+            VkOffset2D dummy3 = VkOffset2D.create();
+            dummy3.x(0);
+            dummy3.y(0);
+            scissor.get(0).offset( dummy3);
+            scissor.get(0).extent( init.swapchain.extent);
+
+            init.arrow_operator().vkCmdSetViewport.invoke (data.command_buffers.get(i), 0, /*1,*/ viewport);
+            init.arrow_operator().vkCmdSetScissor.invoke (data.command_buffers.get(i), 0, /*1,*/ scissor);
+
+            init.arrow_operator().vkCmdBeginRenderPass.invoke (data.command_buffers.get(i), render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+            init.arrow_operator().vkCmdBindPipeline.invoke (data.command_buffers.get(i), VK_PIPELINE_BIND_POINT_GRAPHICS, data.graphics_pipeline[0]);
+
+            init.arrow_operator().vkCmdDraw.invoke (data.command_buffers.get(i), 3, 1, 0, 0);
+
+            init.arrow_operator().vkCmdEndRenderPass.invoke (data.command_buffers.get(i));
+
+            if (init.arrow_operator().vkEndCommandBuffer.invoke (data.command_buffers.get(i)) != VK_SUCCESS) {
+                System.out.println( "failed to record command buffer");
+                return -1; // failed to record command buffer!
+            }
+        }
+        return 0;
+    }
+
+    static int create_sync_objects (final Init init, final RenderData data) {
+        data.available_semaphores.clear(); for(int i=0;i<MAX_FRAMES_IN_FLIGHT;i++) data.available_semaphores.add(new long[1]);//resize (MAX_FRAMES_IN_FLIGHT);
+        data.finished_semaphore.clear(); for(int i=0;i<MAX_FRAMES_IN_FLIGHT;i++) data.finished_semaphore.add(new long[1]);//resize (MAX_FRAMES_IN_FLIGHT);
+        data.in_flight_fences.clear(); for(int i=0;i<MAX_FRAMES_IN_FLIGHT;i++) data.in_flight_fences.add(new long[1]);//resize (MAX_FRAMES_IN_FLIGHT);
+        data.image_in_flight.clear(); for(int i=0;i<init.swapchain.image_count;i++) data.image_in_flight.add(new long[1]);//resize (init.swapchain.image_count, VK_NULL_HANDLE);
+
+        final VkSemaphoreCreateInfo semaphore_info = VkSemaphoreCreateInfo.create();
+        semaphore_info.sType( VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO);
+
+        final VkFenceCreateInfo fence_info = VkFenceCreateInfo.create();
+        fence_info.sType( VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
+        fence_info.flags( VK_FENCE_CREATE_SIGNALED_BIT);
+
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            if (init.arrow_operator().vkCreateSemaphore.invoke (init.device.device[0], semaphore_info, null, data.available_semaphores.get(i)) != VK_SUCCESS ||
+                    init.arrow_operator().vkCreateSemaphore.invoke (init.device.device[0], semaphore_info, null, data.finished_semaphore.get(i)) != VK_SUCCESS ||
+                    init.arrow_operator().vkCreateFence.invoke (init.device.device[0], fence_info, null, data.in_flight_fences.get(i)) != VK_SUCCESS) {
+                System.out.println( "failed to create sync objects");
+                return -1; // failed to create synchronization objects for a frame
+            }
+        }
+        return 0;
+    }
+
+    static int draw_frame (final Init init, final RenderData data) {
         return 0;
     }
 }

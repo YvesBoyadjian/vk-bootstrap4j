@@ -21,9 +21,9 @@ public class RenderData {
     public /*VkCommandPool*/final long[] command_pool = new long[1];
     public final List<VkCommandBuffer> command_buffers = new ArrayList<>();
 
-    public final List</*VkSemaphore*/Integer> available_semaphores = new ArrayList<>();
-    public final List</*VkSemaphore*/Integer> finished_semaphore = new ArrayList<>();
-    public final List</*VkFence*/Integer> in_flight_fences = new ArrayList<>();
-    public final List</*VkFence*/Integer> image_in_flight = new ArrayList<>();
+    public final List</*VkSemaphore*/long[]> available_semaphores = new ArrayList<>();
+    public final List</*VkSemaphore*/long[]> finished_semaphore = new ArrayList<>();
+    public final List</*VkFence*/long[]> in_flight_fences = new ArrayList<>();
+    public final List</*VkFence*/long[]> image_in_flight = new ArrayList<>();
     public long current_frame = 0;
 }
