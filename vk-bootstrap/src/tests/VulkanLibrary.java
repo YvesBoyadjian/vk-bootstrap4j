@@ -25,11 +25,21 @@ public class VulkanLibrary {
         void invoke(VkDevice device, long shaderModule, VkAllocationCallbacks pAllocator);
     }
 
+    public interface PFN_vkCreateFramebuffer {
+        int invoke(VkDevice device, VkFramebufferCreateInfo pCreateInfo, VkAllocationCallbacks pAllocator, long[] pFramebuffer);
+    }
+
+    public interface PFN_vkCreateCommandPool {
+        int invoke(VkDevice device, VkCommandPoolCreateInfo pCreateInfo, VkAllocationCallbacks pAllocator, long[] pCommandPool);
+    }
+
     /*135*/ public PFN_vkCreateRenderPass vkCreateRenderPass = /*VK_NULL_HANDLE*/null;
     /*136*/ public PFN_vkCreateShaderModule vkCreateShaderModule = /*VK_NULL_HANDLE*/null;
     /*137*/ public PFN_vkCreatePipelineLayout vkCreatePipelineLayout = /*VK_NULL_HANDLE*/null;
     /*138*/ public PFN_vkCreateGraphicsPipelines vkCreateGraphicsPipelines = /*VK_NULL_HANDLE*/null;
     /*139*/ public PFN_vkDestroyShaderModule vkDestroyShaderModule = /*VK_NULL_HANDLE*/null;
+    /*140*/ public PFN_vkCreateFramebuffer vkCreateFramebuffer = /*VK_NULL_HANDLE*/null;
+    /*141*/ public PFN_vkCreateCommandPool vkCreateCommandPool = /*VK_NULL_HANDLE*/null;
 
     public void init(VkInstance instance) {
         // Nothing to do
@@ -71,6 +81,20 @@ public class VulkanLibrary {
             @Override
             public void invoke(VkDevice device, long shaderModule, VkAllocationCallbacks pAllocator) {
                 VK10.vkDestroyShaderModule(device,shaderModule,pAllocator);
+            }
+        };
+        /*102*/ vkCreateFramebuffer = //(PFN_vkCreateFramebuffer)vkGetDeviceProcAddr(device, "vkCreateFramebuffer");
+        new PFN_vkCreateFramebuffer() {
+            @Override
+            public int invoke(VkDevice device, VkFramebufferCreateInfo pCreateInfo, VkAllocationCallbacks pAllocator, long[] pFramebuffer) {
+                return VK10.vkCreateFramebuffer(device,pCreateInfo,pAllocator,pFramebuffer);
+            }
+        };
+        /*103*/ vkCreateCommandPool = //(PFN_vkCreateCommandPool)vkGetDeviceProcAddr(device, "vkCreateCommandPool");
+        new PFN_vkCreateCommandPool() {
+            @Override
+            public int invoke(VkDevice device, VkCommandPoolCreateInfo pCreateInfo, VkAllocationCallbacks pAllocator, long[] pCommandPool) {
+                return VK10.vkCreateCommandPool(device,pCreateInfo,pAllocator,pCommandPool);
             }
         };
     }

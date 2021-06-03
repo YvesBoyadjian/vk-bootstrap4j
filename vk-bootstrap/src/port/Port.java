@@ -6,6 +6,7 @@ import org.lwjgl.PointerBuffer;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.nio.LongBuffer;
 import java.util.List;
 
 import static org.lwjgl.system.MemoryUtil.*;
@@ -32,6 +33,17 @@ public class Port {
         int nb = arrayOfInt.length;
         IntBuffer ret = BufferUtils.createIntBuffer(nb);
         for( Integer i : arrayOfInt) {
+            ret.put(i);
+        }
+        ret.flip();
+        return ret;
+    };
+
+    public static final LongBuffer toLongBuffer(long[] arrayOfInt) {
+
+        int nb = arrayOfInt.length;
+        LongBuffer ret = BufferUtils.createLongBuffer(nb);
+        for( Long i : arrayOfInt) {
             ret.put(i);
         }
         ret.flip();

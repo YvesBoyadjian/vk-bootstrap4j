@@ -30,6 +30,8 @@ public class Triangle {
         if (0 != get_queues (init, render_data)) return;
         if (0 != create_render_pass (init, render_data)) return;
         if (0 != create_graphics_pipeline (init, render_data)) return;
+        if (0 != create_framebuffers (init, render_data)) return;
+        if (0 != create_command_pool (init, render_data)) return;
     }
 
     static int device_initialization (Init init) {
@@ -316,6 +318,46 @@ public class Triangle {
 
         init.arrow_operator().vkDestroyShaderModule.invoke (init.device.device[0], frag_module, null);
         init.arrow_operator().vkDestroyShaderModule.invoke (init.device.device[0], vert_module, null);
+        return 0;
+    }
+
+    static int create_framebuffers (final Init init, final RenderData data) {
+        data.swapchain_images.clear(); data.swapchain_images.addAll(init.swapchain.get_images ().value ());
+        data.swapchain_image_views.clear(); data.swapchain_image_views.addAll( init.swapchain.get_image_views ().value ());
+
+        //data.framebuffers.resize (data.swapchain_image_views.size ()); java port
+
+        for (int i = 0; i < data.swapchain_image_views.size (); i++) {
+            /*VkImageView*/long[] attachments = { data.swapchain_image_views.get(i) };
+
+            final VkFramebufferCreateInfo framebuffer_info = VkFramebufferCreateInfo.create();
+            framebuffer_info.sType( VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO);
+            framebuffer_info.renderPass( data.render_pass[0]);
+            //framebuffer_info.attachmentCount( 1); java port
+            framebuffer_info.pAttachments( Port.toLongBuffer(attachments));
+            framebuffer_info.width( init.swapchain.extent.width());
+            framebuffer_info.height( init.swapchain.extent.height());
+            framebuffer_info.layers( 1);
+
+            final long[] p_framebuffer = new long[1];
+
+            if (init.arrow_operator().vkCreateFramebuffer.invoke (init.device.device[0], framebuffer_info, null, p_framebuffer) != VK_SUCCESS) {
+                return -1; // failed to create framebuffer
+            }
+            data.framebuffers.add(p_framebuffer[0]);
+        }
+        return 0;
+    }
+
+    static int create_command_pool (final Init init, final RenderData data) {
+        final VkCommandPoolCreateInfo pool_info = VkCommandPoolCreateInfo.create();
+        pool_info.sType( VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO);
+        pool_info.queueFamilyIndex( init.device.get_queue_index (VkbQueueType.graphics).value ());
+
+        if (init.arrow_operator().vkCreateCommandPool.invoke (init.device.device[0], pool_info, null, data.command_pool) != VK_SUCCESS) {
+            System.out.println( "failed to create command pool");
+            return -1; // failed to create command pool
+        }
         return 0;
     }
 }
