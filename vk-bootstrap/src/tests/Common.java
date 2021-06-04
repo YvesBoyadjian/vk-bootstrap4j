@@ -26,6 +26,10 @@ public class Common {
 
         return glfwCreateWindow(1024, 1024, window_name, 0, 0);
     }
+    /*30*/ public static void destroy_window_glfw(/*GLFWwindow*/long window) {
+        glfwDestroyWindow(window);
+        glfwTerminate();
+    }
 
     /*34*/ public static /*VkSurfaceKHR*/long create_surface_glfw(VkInstance instance, /*GLFWwindow*/long window) {
         /*VkSurfaceKHR*/final long[] surface = new long[1];//VK_NULL_HANDLE;

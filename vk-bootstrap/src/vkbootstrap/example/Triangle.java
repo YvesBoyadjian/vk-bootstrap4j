@@ -21,6 +21,8 @@ import static org.lwjgl.glfw.GLFW.glfwWindowShouldClose;
 import static org.lwjgl.system.MemoryUtil.*;
 import static org.lwjgl.vulkan.KHRSwapchain.*;
 import static org.lwjgl.vulkan.VK10.*;
+import static tests.Common.destroy_window_glfw;
+import static vkbootstrap.VkBootstrap.*;
 
 public class Triangle {
 
@@ -50,6 +52,9 @@ public class Triangle {
                 return;
             }
         }
+        init.arrow_operator().vkDeviceWaitIdle.invoke (init.device.device[0]);
+
+        cleanup (init, render_data);
     }
 
     static int device_initialization (Init init) {
@@ -95,7 +100,7 @@ public class Triangle {
             System.out.println( swap_ret.error().message () + " " + swap_ret.vk_result() );
             return -1;
         }
-        VkBootstrap.destroy_swapchain(init.swapchain);
+        destroy_swapchain(init.swapchain);
         init.swapchain = swap_ret.value ();
         return 0;
     }
@@ -567,5 +572,31 @@ public class Triangle {
 
         data.current_frame = (data.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
         return 0;
+    }
+
+    static void cleanup (final Init init, final RenderData data) {
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            init.arrow_operator().vkDestroySemaphore.invoke (init.device.device[0], data.finished_semaphore.get(i)[0], null);
+            init.arrow_operator().vkDestroySemaphore.invoke (init.device.device[0], data.available_semaphores.get(i)[0], null);
+            init.arrow_operator().vkDestroyFence.invoke (init.device.device[0], data.in_flight_fences.get(i)[0], null);
+        }
+
+        init.arrow_operator().vkDestroyCommandPool.invoke (init.device.device[0], data.command_pool[0], null);
+
+        for (var framebuffer : data.framebuffers) {
+            init.arrow_operator().vkDestroyFramebuffer.invoke (init.device.device[0], framebuffer, null);
+        }
+
+        init.arrow_operator().vkDestroyPipeline.invoke (init.device.device[0], data.graphics_pipeline[0], null);
+        init.arrow_operator().vkDestroyPipelineLayout.invoke (init.device.device[0], data.pipeline_layout[0], null);
+        init.arrow_operator().vkDestroyRenderPass.invoke (init.device.device[0], data.render_pass[0], null);
+
+        init.swapchain.destroy_image_views (data.swapchain_image_views);
+
+        destroy_swapchain (init.swapchain);
+        destroy_device (init.device);
+        init.arrow_operator().vkDestroySurfaceKHR.invoke (init.instance.instance[0], init.surface, null);
+        destroy_instance (init.instance);
+        destroy_window_glfw (init.window);
     }
 }

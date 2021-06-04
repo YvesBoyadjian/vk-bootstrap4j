@@ -40,6 +40,10 @@ public class VkbVulkanFunctions {
         int invoke(VkInstanceCreateInfo pCreateInfo, VkAllocationCallbacks pAllocator, final VkInstance[] pInstance);
     }
 
+    public interface PFN_vkDestroyInstance {
+        void invoke(VkInstance instance, VkAllocationCallbacks pAllocator);
+    }
+
     public interface PFN_vkEnumeratePhysicalDevices {
         int invoke(VkInstance instance, int[] pPhysicalDeviceCount, PointerBuffer pPhysicalDevices);
     }
@@ -69,6 +73,10 @@ public class VkbVulkanFunctions {
 
     public interface PFN_vkCreateDevice {
         int invoke(VkPhysicalDevice physicalDevice, VkDeviceCreateInfo pCreateInfo, VkAllocationCallbacks pAllocator, final VkDevice[] pDevice);
+    }
+
+    public interface PFN_vkDestroyDevice {
+        void invoke(VkDevice device, VkAllocationCallbacks pAllocator);
     }
 
     public interface PFN_vkEnumerateDeviceExtensionProperties {
@@ -115,6 +123,10 @@ public class VkbVulkanFunctions {
         int invoke(VkDevice device, long swapchain, int[] pSwapchainImageCount, long[] pSwapchainImages);
     }
 
+    public interface PFN_vkDestroyDebugUtilsMessengerEXT {
+        void invoke(VkInstance instance, long messenger, VkAllocationCallbacks pAllocator);
+    }
+
     /*100*/ boolean load_vulkan(long fp_vkGetInstanceProcAddr) {
         ptr_vkGetInstanceProcAddr = new PFN_vkGetInstanceProcAddr() {
             public long invoke(VkInstance instance, CharSequence pName) {
@@ -131,6 +143,7 @@ public class VkbVulkanFunctions {
 
     /*128*/ PFN_vkEnumerateInstanceVersion fp_vkEnumerateInstanceVersion = null;
     /*129*/ PFN_vkCreateInstance fp_vkCreateInstance = null;
+    /*130*/ PFN_vkDestroyInstance fp_vkDestroyInstance = null;
 
     /*132*/ PFN_vkEnumeratePhysicalDevices fp_vkEnumeratePhysicalDevices = null;
     /*133*/ PFN_vkGetPhysicalDeviceFeatures fp_vkGetPhysicalDeviceFeatures = null;
@@ -141,6 +154,7 @@ public class VkbVulkanFunctions {
     /*141*/ PFN_vkGetPhysicalDeviceMemoryProperties fp_vkGetPhysicalDeviceMemoryProperties = null;
 
     /*145*/ PFN_vkCreateDevice fp_vkCreateDevice = null;
+    /*146*/ PFN_vkDestroyDevice fp_vkDestroyDevice = null;
     /*147*/ PFN_vkEnumerateDeviceExtensionProperties fp_vkEnumerateDeviceExtensionProperties = null;
     /*148*/ PFN_vkGetDeviceQueue fp_vkGetDeviceQueue = null;
 
@@ -203,6 +217,13 @@ public class VkbVulkanFunctions {
         return true;
     }
     /*174*/ void init_instance_funcs(VkInstance inst) {
+        /*178*/ //get_proc_addr(fp_vkDestroyInstance, "vkDestroyInstance");
+        fp_vkDestroyInstance = new PFN_vkDestroyInstance() {
+            @Override
+            public void invoke(VkInstance instance, VkAllocationCallbacks pAllocator) {
+                VK10.vkDestroyInstance(instance,pAllocator);
+            }
+        };
         /*179*/ //get_proc_addr(fp_vkEnumeratePhysicalDevices, "vkEnumeratePhysicalDevices");
         fp_vkEnumeratePhysicalDevices = new PFN_vkEnumeratePhysicalDevices() {
             @Override
@@ -270,6 +291,13 @@ public class VkbVulkanFunctions {
                 }
                 memFree(pp);
                 return ret_val;
+            }
+        };
+        /*193*/ //get_proc_addr(fp_vkDestroyDevice, "vkDestroyDevice");
+        fp_vkDestroyDevice = new PFN_vkDestroyDevice() {
+            @Override
+            public void invoke(VkDevice device, VkAllocationCallbacks pAllocator) {
+                VK10.vkDestroyDevice(device,pAllocator);
             }
         };
 

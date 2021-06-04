@@ -248,6 +248,23 @@ public class VkBootstrap {
         }
     }
 
+    /*295*/ public static void destroy_debug_utils_messenger(
+            VkInstance instance, /*VkDebugUtilsMessengerEXT*/long debugMessenger, VkAllocationCallbacks allocation_callbacks) {
+
+        VkbVulkanFunctions.PFN_vkDestroyDebugUtilsMessengerEXT deleteMessengerFunc;
+        //vulkan_functions().get_inst_proc_addr(deleteMessengerFunc, "vkDestroyDebugUtilsMessengerEXT");
+        deleteMessengerFunc = new VkbVulkanFunctions.PFN_vkDestroyDebugUtilsMessengerEXT() {
+            @Override
+            public void invoke(VkInstance instance, long messenger, VkAllocationCallbacks pAllocator) {
+                EXTDebugUtils.vkDestroyDebugUtilsMessengerEXT(instance,messenger,pAllocator);
+            }
+        };
+
+        if (deleteMessengerFunc != null) {
+            deleteMessengerFunc.invoke(instance, debugMessenger, allocation_callbacks);
+        }
+    }
+
     /*306*/ public static final VkDebugUtilsMessengerCallbackEXT default_debug_callback = VkDebugUtilsMessengerCallbackEXT.create(new VkDebugUtilsMessengerCallbackEXTI() {
         @Override
         public int invoke(int messageSeverity, int messageType, long pCallbackData, long voide) {
@@ -371,6 +388,14 @@ public class VkBootstrap {
     // Sentinel value, used in implementation only
     public static final int QUEUE_INDEX_MAX_VALUE = 65536;
 
+    /*560*/ public static void destroy_instance(VkbInstance instance) {
+        if (instance.instance[0] != /*VK_NULL_HANDLE*/null) {
+            if (instance.debug_messenger[0] != VK_NULL_HANDLE)
+                destroy_debug_utils_messenger(instance.instance[0], instance.debug_messenger[0], instance.allocation_callbacks);
+            vulkan_functions().fp_vkDestroyInstance.invoke(instance.instance[0], instance.allocation_callbacks);
+        }
+    }
+
     /*842*/
     static List<String> check_device_extension_support(
             VkPhysicalDevice device, List<String> desired_extensions) {
@@ -460,6 +485,10 @@ public class VkBootstrap {
         final VkQueue[] out_queue = new VkQueue[1];
         vulkan_functions().fp_vkGetDeviceQueue.invoke(device, family, 0, out_queue);
         return out_queue[0];
+    }
+
+    /*1381*/ public static void destroy_device(VkbDevice device) {
+        vulkan_functions().fp_vkDestroyDevice.invoke(device.device[0], device.allocation_callbacks[0]);
     }
 
     /*1521*/ static final SurfaceSupportErrorCategory surface_support_error_category = new SurfaceSupportErrorCategory();

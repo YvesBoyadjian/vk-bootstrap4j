@@ -115,6 +115,30 @@ public class VulkanLibrary {
         int invoke(VkQueue queue, VkPresentInfoKHR pPresentInfo);
     }
 
+    public interface PFN_vkDestroySemaphore {
+        void invoke(VkDevice device, long semaphore, VkAllocationCallbacks pAllocator);
+    }
+
+    public interface PFN_vkDestroyFence {
+        void invoke(VkDevice device, long fence, VkAllocationCallbacks pAllocator);
+    }
+
+    public interface PFN_vkDestroyPipeline {
+        void invoke(VkDevice device, long pipeline, VkAllocationCallbacks pAllocator);
+    }
+
+    public interface PFN_vkDestroyPipelineLayout {
+        void invoke(VkDevice device, long pipelineLayout, VkAllocationCallbacks pAllocator);
+    }
+
+    public interface PFN_vkDestroySurfaceKHR {
+        void invoke(VkInstance instance, long surface, VkAllocationCallbacks pAllocator);
+    }
+
+    public interface PFN_vkDestroyRenderPass {
+        void invoke(VkDevice device, long renderPass, VkAllocationCallbacks pAllocator);
+    }
+
     /*135*/ public PFN_vkCreateRenderPass vkCreateRenderPass = /*VK_NULL_HANDLE*/null;
     /*136*/ public PFN_vkCreateShaderModule vkCreateShaderModule = /*VK_NULL_HANDLE*/null;
     /*137*/ public PFN_vkCreatePipelineLayout vkCreatePipelineLayout = /*VK_NULL_HANDLE*/null;
@@ -141,9 +165,21 @@ public class VulkanLibrary {
     /*158*/ public PFN_vkResetFences vkResetFences = /*VK_NULL_HANDLE*/null;
     /*159*/	public PFN_vkQueueSubmit vkQueueSubmit = /*VK_NULL_HANDLE*/null;
     /*160*/ public PFN_vkQueuePresentKHR vkQueuePresentKHR = /*VK_NULL_HANDLE*/null;
+    /*161*/ public PFN_vkDestroySemaphore vkDestroySemaphore = /*VK_NULL_HANDLE*/null;
+    /*162*/ public PFN_vkDestroyFence vkDestroyFence = /*VK_NULL_HANDLE*/null;
+    /*163*/ public PFN_vkDestroyPipeline vkDestroyPipeline = /*VK_NULL_HANDLE*/null;
+    /*164*/ public PFN_vkDestroyPipelineLayout vkDestroyPipelineLayout = /*VK_NULL_HANDLE*/null;
+    /*165*/ public PFN_vkDestroySurfaceKHR vkDestroySurfaceKHR = /*VK_NULL_HANDLE*/null;
+    /*166*/ public PFN_vkDestroyRenderPass vkDestroyRenderPass = /*VK_NULL_HANDLE*/null;
 
     public void init(VkInstance instance) {
-        // Nothing to do
+        vkDestroySurfaceKHR = //(PFN_vkDestroySurfaceKHR)vkGetInstanceProcAddr(instance, "vkDestroySurfaceKHR");
+        new PFN_vkDestroySurfaceKHR() {
+            @Override
+            public void invoke(VkInstance instance, long surface, VkAllocationCallbacks pAllocator) {
+                KHRSurface.vkDestroySurfaceKHR(instance,surface,pAllocator);
+            }
+        };
     }
 
     public void init(VkDevice device) {
@@ -334,11 +370,47 @@ public class VulkanLibrary {
                 return VK10.vkQueueSubmit(queue,pSubmit,fence);
             }
         };
-        vkQueuePresentKHR = //(PFN_vkQueuePresentKHR)vkGetDeviceProcAddr(device, "vkQueuePresentKHR");
+        /*123*/ vkQueuePresentKHR = //(PFN_vkQueuePresentKHR)vkGetDeviceProcAddr(device, "vkQueuePresentKHR");
         new PFN_vkQueuePresentKHR() {
             @Override
             public int invoke(VkQueue queue, VkPresentInfoKHR pPresentInfo) {
                 return KHRSwapchain.vkQueuePresentKHR(queue,pPresentInfo);
+            }
+        };
+        /*124*/ vkDestroySemaphore = //(PFN_vkDestroySemaphore)vkGetDeviceProcAddr(device, "vkDestroySemaphore");
+        new PFN_vkDestroySemaphore() {
+            @Override
+            public void invoke(VkDevice device, long semaphore, VkAllocationCallbacks pAllocator) {
+                VK10.vkDestroySemaphore(device,semaphore,pAllocator);
+            }
+        };
+        /*125*/ vkDestroyFence = //(PFN_vkDestroyFence)vkGetDeviceProcAddr(device, "vkDestroyFence");
+        new PFN_vkDestroyFence() {
+            @Override
+            public void invoke(VkDevice device, long fence, VkAllocationCallbacks pAllocator) {
+                VK10.vkDestroyFence(device,fence,pAllocator);
+            }
+        };
+        /*126*/ vkDestroyPipeline = //(PFN_vkDestroyPipeline)vkGetDeviceProcAddr(device, "vkDestroyPipeline");
+        new PFN_vkDestroyPipeline() {
+            @Override
+            public void invoke(VkDevice device, long pipeline, VkAllocationCallbacks pAllocator) {
+                VK10.vkDestroyPipeline(device,pipeline,pAllocator);
+            }
+        };
+        /*127*/ vkDestroyPipelineLayout =
+        //(PFN_vkDestroyPipelineLayout)vkGetDeviceProcAddr(device, "vkDestroyPipelineLayout");
+        new PFN_vkDestroyPipelineLayout() {
+            @Override
+            public void invoke(VkDevice device, long pipelineLayout, VkAllocationCallbacks pAllocator) {
+                VK10.vkDestroyPipelineLayout(device,pipelineLayout,pAllocator);
+            }
+        };
+        /*129*/ vkDestroyRenderPass = //(PFN_vkDestroyRenderPass)vkGetDeviceProcAddr(device, "vkDestroyRenderPass");
+        new PFN_vkDestroyRenderPass() {
+            @Override
+            public void invoke(VkDevice device, long renderPass, VkAllocationCallbacks pAllocator) {
+                VK10.vkDestroyRenderPass(device,renderPass,pAllocator);
             }
         };
     }
