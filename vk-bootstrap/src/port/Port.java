@@ -15,6 +15,8 @@ public class Port {
 
     public static final int UINT32_MAX = (int)0xffffffffl;
 
+    public static final long UINT64_MAX = 0xffffffffffffffffl;
+
     public static final sun.misc.Unsafe UNSAFE = getUnsafeInstance();
 
     public static final IntBuffer datai(List<Integer> listOfInt) {

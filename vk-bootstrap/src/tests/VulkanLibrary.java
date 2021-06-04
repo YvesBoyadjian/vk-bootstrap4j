@@ -83,6 +83,38 @@ public class VulkanLibrary {
         int invoke(VkDevice device, VkFenceCreateInfo pCreateInfo, VkAllocationCallbacks pAllocator, long[] pFence);
     }
 
+    public interface PFN_vkDeviceWaitIdle {
+        int invoke(VkDevice device);
+    }
+
+    public interface PFN_vkDestroyCommandPool {
+        void invoke(VkDevice device, long commandPool, VkAllocationCallbacks pAllocator);
+    }
+
+    public interface PFN_vkDestroyFramebuffer {
+        void invoke(VkDevice device, long framebuffer, VkAllocationCallbacks pAllocator);
+    }
+
+    public interface PFN_vkWaitForFences {
+        int invoke(VkDevice device, long[] pFence, boolean waitAll, long timeout);
+    }
+
+    public interface PFN_vkAcquireNextImageKHR {
+        int invoke(VkDevice device, long swapchain, long timeout, long semaphore, long fence, int[] pImageIndex);
+    }
+
+    public interface PFN_vkResetFences {
+        int invoke(VkDevice device, long[] pFences);
+    }
+
+    public interface PFN_vkQueueSubmit {
+        int invoke(VkQueue queue, VkSubmitInfo pSubmit, long fence);
+    }
+
+    public interface PFN_vkQueuePresentKHR {
+        int invoke(VkQueue queue, VkPresentInfoKHR pPresentInfo);
+    }
+
     /*135*/ public PFN_vkCreateRenderPass vkCreateRenderPass = /*VK_NULL_HANDLE*/null;
     /*136*/ public PFN_vkCreateShaderModule vkCreateShaderModule = /*VK_NULL_HANDLE*/null;
     /*137*/ public PFN_vkCreatePipelineLayout vkCreatePipelineLayout = /*VK_NULL_HANDLE*/null;
@@ -101,6 +133,14 @@ public class VulkanLibrary {
     /*150*/ public PFN_vkCmdDraw vkCmdDraw = /*VK_NULL_HANDLE*/null;
     /*151*/ public PFN_vkCreateSemaphore vkCreateSemaphore = /*VK_NULL_HANDLE*/null;
     /*152*/ public PFN_vkCreateFence vkCreateFence = /*VK_NULL_HANDLE*/null;
+    /*153*/ public PFN_vkDeviceWaitIdle vkDeviceWaitIdle = /*VK_NULL_HANDLE*/null;
+    /*154*/ public PFN_vkDestroyCommandPool vkDestroyCommandPool = /*VK_NULL_HANDLE*/null;
+    /*155*/ public PFN_vkDestroyFramebuffer vkDestroyFramebuffer = /*VK_NULL_HANDLE*/null;
+    /*156*/ public PFN_vkWaitForFences vkWaitForFences = /*VK_NULL_HANDLE*/null;
+    /*157*/ public PFN_vkAcquireNextImageKHR vkAcquireNextImageKHR = /*VK_NULL_HANDLE*/null;
+    /*158*/ public PFN_vkResetFences vkResetFences = /*VK_NULL_HANDLE*/null;
+    /*159*/	public PFN_vkQueueSubmit vkQueueSubmit = /*VK_NULL_HANDLE*/null;
+    /*160*/ public PFN_vkQueuePresentKHR vkQueuePresentKHR = /*VK_NULL_HANDLE*/null;
 
     public void init(VkInstance instance) {
         // Nothing to do
@@ -243,6 +283,62 @@ public class VulkanLibrary {
             @Override
             public int invoke(VkDevice device, VkFenceCreateInfo pCreateInfo, VkAllocationCallbacks pAllocator, long[] pFence) {
                 return VK10.vkCreateFence(device,pCreateInfo,pAllocator,pFence);
+            }
+        };
+        /*116*/ vkDeviceWaitIdle = //(PFN_vkDeviceWaitIdle)vkGetDeviceProcAddr(device, "vkDeviceWaitIdle");
+        new PFN_vkDeviceWaitIdle() {
+            @Override
+            public int invoke(VkDevice device) {
+                return VK10.vkDeviceWaitIdle(device);
+            }
+        };
+        /*117*/ vkDestroyCommandPool = //(PFN_vkDestroyCommandPool)vkGetDeviceProcAddr(device, "vkDestroyCommandPool");
+        new PFN_vkDestroyCommandPool() {
+            @Override
+            public void invoke(VkDevice device, long commandPool, VkAllocationCallbacks pAllocator) {
+                VK10.vkDestroyCommandPool(device,commandPool,pAllocator);
+            }
+        };
+        /*118*/ vkDestroyFramebuffer = //(PFN_vkDestroyFramebuffer)vkGetDeviceProcAddr(device, "vkDestroyFramebuffer");
+        new PFN_vkDestroyFramebuffer() {
+            @Override
+            public void invoke(VkDevice device, long framebuffer, VkAllocationCallbacks pAllocator) {
+                VK10.vkDestroyFramebuffer(device,framebuffer,pAllocator);
+            }
+        };
+        /*119*/ vkWaitForFences = //(PFN_vkWaitForFences)vkGetDeviceProcAddr(device, "vkWaitForFences");
+        new PFN_vkWaitForFences() {
+            @Override
+            public int invoke(VkDevice device, long[] pFence, boolean waitAll, long timeout) {
+                return VK10.vkWaitForFences(device,pFence,waitAll,timeout);
+            }
+        };
+        /*120*/ vkAcquireNextImageKHR = //(PFN_vkAcquireNextImageKHR)vkGetDeviceProcAddr(device, "vkAcquireNextImageKHR");
+        new PFN_vkAcquireNextImageKHR() {
+            @Override
+            public int invoke(VkDevice device, long swapchain, long timeout, long semaphore, long fence, int[] pImageIndex) {
+                return KHRSwapchain.vkAcquireNextImageKHR(device,swapchain,timeout,semaphore,fence,pImageIndex);
+            }
+        };
+        /*121*/ vkResetFences = //(PFN_vkResetFences)vkGetDeviceProcAddr(device, "vkResetFences");
+        new PFN_vkResetFences() {
+            @Override
+            public int invoke(VkDevice device, long[] pFences) {
+                return VK10.vkResetFences(device,pFences);
+            }
+        };
+        /*122*/ vkQueueSubmit = //(PFN_vkQueueSubmit)vkGetDeviceProcAddr(device, "vkQueueSubmit");
+        new PFN_vkQueueSubmit() {
+            @Override
+            public int invoke(VkQueue queue, VkSubmitInfo pSubmit, long fence) {
+                return VK10.vkQueueSubmit(queue,pSubmit,fence);
+            }
+        };
+        vkQueuePresentKHR = //(PFN_vkQueuePresentKHR)vkGetDeviceProcAddr(device, "vkQueuePresentKHR");
+        new PFN_vkQueuePresentKHR() {
+            @Override
+            public int invoke(VkQueue queue, VkPresentInfoKHR pPresentInfo) {
+                return KHRSwapchain.vkQueuePresentKHR(queue,pPresentInfo);
             }
         };
     }

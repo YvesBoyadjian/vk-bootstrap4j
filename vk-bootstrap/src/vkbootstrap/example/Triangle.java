@@ -1,6 +1,7 @@
 package vkbootstrap.example;
 
 import org.lwjgl.BufferUtils;
+import org.lwjgl.PointerBuffer;
 import org.lwjgl.vulkan.*;
 import port.Port;
 import tests.Common;
@@ -10,13 +11,15 @@ import javax.management.RuntimeErrorException;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
+import java.nio.LongBuffer;
 import java.nio.channels.FileChannel;
 import java.util.List;
 
 import static org.lwjgl.glfw.GLFW.glfwPollEvents;
 import static org.lwjgl.glfw.GLFW.glfwWindowShouldClose;
-import static org.lwjgl.system.MemoryUtil.memUTF8;
-import static org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+import static org.lwjgl.system.MemoryUtil.*;
+import static org.lwjgl.vulkan.KHRSwapchain.*;
 import static org.lwjgl.vulkan.VK10.*;
 
 public class Triangle {
@@ -341,6 +344,7 @@ public class Triangle {
         data.swapchain_image_views.clear(); data.swapchain_image_views.addAll( init.swapchain.get_image_views ().value ());
 
         //data.framebuffers.resize (data.swapchain_image_views.size ()); java port
+        data.framebuffers.clear();
 
         for (int i = 0; i < data.swapchain_image_views.size (); i++) {
             /*VkImageView*/long[] attachments = { data.swapchain_image_views.get(i) };
@@ -472,7 +476,96 @@ public class Triangle {
         return 0;
     }
 
+    static int recreate_swapchain (final Init init, final RenderData data) {
+        init.arrow_operator().vkDeviceWaitIdle.invoke (init.device.device[0]);
+
+        init.arrow_operator().vkDestroyCommandPool.invoke (init.device.device[0], data.command_pool[0], null);
+
+        for (var framebuffer : data.framebuffers) {
+            init.arrow_operator().vkDestroyFramebuffer.invoke (init.device.device[0], framebuffer, null);
+        }
+
+        init.swapchain.destroy_image_views (data.swapchain_image_views);
+
+        if (0 != create_swapchain (init)) return -1;
+        if (0 != create_framebuffers (init, data)) return -1;
+        if (0 != create_command_pool (init, data)) return -1;
+        if (0 != create_command_buffers (init, data)) return -1;
+        return 0;
+    }
+
     static int draw_frame (final Init init, final RenderData data) {
+        init.arrow_operator().vkWaitForFences.invoke (init.device.device[0], /*1,*/ data.in_flight_fences.get((int)data.current_frame), VK_TRUE != 0, Port.UINT64_MAX);
+
+        final int[] image_index = new int[1];
+        /*VkResult*/int result = init.arrow_operator().vkAcquireNextImageKHR.invoke (init.device.device[0],
+                init.swapchain.swapchain[0],
+                Port.UINT64_MAX,
+                data.available_semaphores.get((int)data.current_frame)[0],
+                VK_NULL_HANDLE,
+                image_index);
+
+        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+            return recreate_swapchain (init, data);
+        } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+            System.out.println( "failed to acquire swapchain image. Error " + result );
+            return -1;
+        }
+
+        if (data.image_in_flight.get(image_index[0])[0] != VK_NULL_HANDLE) {
+            init.arrow_operator().vkWaitForFences.invoke (init.device.device[0], /*1,*/ data.image_in_flight.get(image_index[0]), VK_TRUE != 0, Port.UINT64_MAX);
+        }
+        data.image_in_flight.get(image_index[0])[0] = data.in_flight_fences.get((int)data.current_frame)[0];
+
+        final VkSubmitInfo submitInfo = VkSubmitInfo.create();
+        submitInfo.sType( VK_STRUCTURE_TYPE_SUBMIT_INFO);
+
+        /*VkSemaphore*/
+        LongBuffer wait_semaphores = memAllocLong(1); wait_semaphores.put(0, data.available_semaphores.get((int)data.current_frame)[0]);
+        /*VkPipelineStageFlags*/
+        IntBuffer wait_stages = memAllocInt(1); wait_stages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT );
+        submitInfo.waitSemaphoreCount( 1);
+        submitInfo.pWaitSemaphores( wait_semaphores);
+        submitInfo.pWaitDstStageMask( wait_stages);
+
+        //submitInfo.commandBufferCount( 1); java port
+        PointerBuffer pCommandBuffers = memAllocPointer(1); pCommandBuffers.put(0,data.command_buffers.get(image_index[0]).address());
+        submitInfo.pCommandBuffers( pCommandBuffers);
+
+        LongBuffer /*VkSemaphore*/ signal_semaphores= memAllocLong(1); signal_semaphores.put(0, data.finished_semaphore.get((int)data.current_frame)[0] );
+        //submitInfo.signalSemaphoreCount( 1); java port
+        submitInfo.pSignalSemaphores( signal_semaphores);
+
+        init.arrow_operator().vkResetFences.invoke (init.device.device[0], /*1,*/ data.in_flight_fences.get((int)data.current_frame));
+
+        if (init.arrow_operator().vkQueueSubmit.invoke (data.graphics_queue, /*1,*/ submitInfo, data.in_flight_fences.get((int)data.current_frame)[0]) != VK_SUCCESS) {
+            System.out.println( "failed to submit draw command buffer");
+            return -1; //"failed to submit draw command buffer
+        }
+
+        final VkPresentInfoKHR present_info = VkPresentInfoKHR.create();
+        present_info.sType( VK_STRUCTURE_TYPE_PRESENT_INFO_KHR);
+
+        //present_info.waitSemaphoreCount( 1); java port
+        present_info.pWaitSemaphores( signal_semaphores);
+
+        /*VkSwapchainKHR*/LongBuffer swapChains = memAllocLong(1);swapChains.put(0, init.swapchain.swapchain[0] );
+        present_info.swapchainCount( 1);
+        present_info.pSwapchains( swapChains);
+
+        IntBuffer pImageIndex = memAllocInt(1); // java port
+        pImageIndex.put(0,image_index[0]); // java port
+        present_info.pImageIndices( /*image_index[0]*/pImageIndex);
+
+        result = init.arrow_operator().vkQueuePresentKHR.invoke (data.present_queue, present_info);
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+            return recreate_swapchain (init, data);
+        } else if (result != VK_SUCCESS) {
+            System.out.println( "failed to present swapchain image");
+            return -1;
+        }
+
+        data.current_frame = (data.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
         return 0;
     }
 }

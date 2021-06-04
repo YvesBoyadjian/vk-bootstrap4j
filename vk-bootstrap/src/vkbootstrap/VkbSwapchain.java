@@ -29,7 +29,7 @@ public class VkbSwapchain {
         return new Result(swapchain_images);
     }
 
-    public Result<List</*VkImageView*/Long>> get_image_views() {
+    /*1751*/ public Result<List</*VkImageView*/Long>> get_image_views() {
 
         var swapchain_images_ret = get_images();
         if (swapchain_images_ret.not()) return new Result<>(swapchain_images_ret.error());
@@ -62,5 +62,10 @@ public class VkbSwapchain {
             views.add(p_view[0]);
         }
         return new Result<>(views);
+    }
+    /*1782*/ public void destroy_image_views(final List</*VkImageView*/Long> image_views) {
+        for (var image_view : image_views) {
+            vulkan_functions().fp_vkDestroyImageView.invoke(device, image_view, allocation_callbacks);
+        }
     }
 }

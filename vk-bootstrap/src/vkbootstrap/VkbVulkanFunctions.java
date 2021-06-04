@@ -83,6 +83,10 @@ public class VkbVulkanFunctions {
         int invoke(VkDevice device, VkImageViewCreateInfo pCreateInfo, VkAllocationCallbacks pAllocator, long[] pView);
     }
 
+    public interface PFN_vkDestroyImageView {
+        void invoke(VkDevice device, long imageView, VkAllocationCallbacks pAllocator);
+    }
+
     public interface PFN_vkGetPhysicalDeviceSurfaceSupportKHR {
         int invoke(VkPhysicalDevice physicalDevice, int queueFamilyIndex, long surface, int[] pSupported);
     }
@@ -141,6 +145,7 @@ public class VkbVulkanFunctions {
     /*148*/ PFN_vkGetDeviceQueue fp_vkGetDeviceQueue = null;
 
     /*150*/ PFN_vkCreateImageView fp_vkCreateImageView = null;
+    /*151*/ PFN_vkDestroyImageView fp_vkDestroyImageView = null;
 
     /*154*/ PFN_vkGetPhysicalDeviceSurfaceSupportKHR fp_vkGetPhysicalDeviceSurfaceSupportKHR = null;
     /*155*/ PFN_vkGetPhysicalDeviceSurfaceFormatsKHR fp_vkGetPhysicalDeviceSurfaceFormatsKHR = null;
@@ -292,6 +297,13 @@ public class VkbVulkanFunctions {
             @Override
             public int invoke(VkDevice device, VkImageViewCreateInfo pCreateInfo, VkAllocationCallbacks pAllocator, long[] pView) {
                 return VK10.vkCreateImageView(device,pCreateInfo,pAllocator,pView);
+            }
+        };
+        /*198*/ //get_proc_addr(fp_vkDestroyImageView, "vkDestroyImageView");
+        fp_vkDestroyImageView = new PFN_vkDestroyImageView() {
+            @Override
+            public void invoke(VkDevice device, long imageView, VkAllocationCallbacks pAllocator) {
+                VK10.vkDestroyImageView(device,imageView,pAllocator);
             }
         };
 
