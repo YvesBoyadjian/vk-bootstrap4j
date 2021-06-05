@@ -57,7 +57,7 @@ public class VkbSystemInfo {
             var layer_extensions_ret = VkBootstrap.get_vector/*<VkExtensionProperties>*/(layer_extensions,
             vulkan_functions().fp_vkEnumerateInstanceExtensionProperties,
                     layer.layerName());
-            if (layer_extensions_ret != VK_SUCCESS) {
+            if (layer_extensions_ret == VK_SUCCESS) {
                 for (var ext : layer_extensions)
                 if (Objects.equals(ext.extensionNameString(), VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
                     debug_utils_available = true;
