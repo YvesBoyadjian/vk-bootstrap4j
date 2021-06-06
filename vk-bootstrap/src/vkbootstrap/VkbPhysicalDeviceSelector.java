@@ -183,12 +183,14 @@ public class VkbPhysicalDeviceSelector {
 
         boolean has_required_memory = false;
         boolean has_preferred_memory = false;
-        for (int i = 0; i < pd.mem_properties.memoryHeapCount(); i++) {
+        final int memoryHeapCount = pd.mem_properties.memoryHeapCount();
+        for (int i = 0; i < memoryHeapCount; i++) {
             if ((pd.mem_properties.memoryHeaps(i).flags() & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)!=0) {
-                if (pd.mem_properties.memoryHeaps(i).size() > criteria.required_mem_size) {
+                final long memoryHeapSize = pd.mem_properties.memoryHeaps(i).size();
+                if (memoryHeapSize > criteria.required_mem_size) {
                     has_required_memory = true;
                 }
-                if (pd.mem_properties.memoryHeaps(i).size() > criteria.desired_mem_size) {
+                if (memoryHeapSize > criteria.desired_mem_size) {
                     has_preferred_memory = true;
                 }
             }

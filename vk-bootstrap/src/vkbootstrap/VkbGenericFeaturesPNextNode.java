@@ -14,22 +14,25 @@ public class VkbGenericFeaturesPNextNode extends Struct implements NativeResourc
     /** The struct size in bytes. */
     public static final int SIZEOF;
 
+    public static final int field_capacity = 256;
+
     public static final int
             STYPE,
-            PNEXT;
+            PNEXT,
+            FIELDS;
 
     static {
         Layout layout = __struct(
                 __member(4),
                 __member(POINTER_SIZE),
-                __member(4),
-                __array(4,256)
+                __array(4,field_capacity)
         );
 
         SIZEOF = layout.getSize();
 
         STYPE = layout.offsetof(0);
         PNEXT = layout.offsetof(1);
+        FIELDS = layout.offsetof(2);
     }
 
     /**
@@ -47,9 +50,32 @@ public class VkbGenericFeaturesPNextNode extends Struct implements NativeResourc
         return SIZEOF;
     }
 
+    public int sType() {
+        return nsType(this.address());
+    }
+
+    public int fields(int i) { return nsFields(this.address,i); }
+
     public VkbGenericFeaturesPNextNode pNext(VkbGenericFeaturesPNextNode value) { npNext(address(), value); return this; }
 
     public static void npNext(long struct, VkbGenericFeaturesPNextNode value) {
         memPutAddress(struct + VkbGenericFeaturesPNextNode.PNEXT, memAddressSafe(value));
+    }
+
+    public static int nsType(long struct) {
+        return UNSAFE.getInt((Object)null, struct + (long)STYPE);
+    }
+
+    public static int nsFields(long struct,int i) {
+        return UNSAFE.getInt((Object)null, struct + (long)FIELDS+4*i);
+    }
+
+    public static boolean match(
+            final VkbGenericFeaturesPNextNode requested, final VkbGenericFeaturesPNextNode supported) {
+        assert(requested.sType() == supported.sType() && "Non-matching sTypes in features nodes!"!=null);
+        for (int i = 0; i < field_capacity; i++) {
+            if (requested.fields(i) != 0 && supported.fields(i) == 0) return false;
+        }
+        return true;
     }
 }
