@@ -127,12 +127,16 @@ public class VkbVulkanFunctions {
         void invoke(VkInstance instance, long messenger, VkAllocationCallbacks pAllocator);
     }
 
-    /*100*/ boolean load_vulkan(long fp_vkGetInstanceProcAddr) {
-        ptr_vkGetInstanceProcAddr = new PFN_vkGetInstanceProcAddr() {
-            public long invoke(VkInstance instance, CharSequence pName) {
-                return VK10.vkGetInstanceProcAddr(instance, pName);
-            }
-        };
+    /*100*/ boolean load_vulkan(PFN_vkGetInstanceProcAddr fp_vkGetInstanceProcAddr) {
+        if (fp_vkGetInstanceProcAddr != null) {
+            ptr_vkGetInstanceProcAddr = fp_vkGetInstanceProcAddr;
+        } else {
+            ptr_vkGetInstanceProcAddr = new PFN_vkGetInstanceProcAddr() {
+                public long invoke(VkInstance instance, CharSequence pName) {
+                    return VK10.vkGetInstanceProcAddr(instance, pName);
+                }
+            };
+        }
         return true;
     }
 
@@ -210,7 +214,7 @@ public class VkbVulkanFunctions {
         };
     }
 
-    /*162*/ public boolean init_vulkan_funcs(/*PFN_vkGetInstanceProcAddr*/long fp_vkGetInstanceProcAddr) {
+    /*162*/ public boolean init_vulkan_funcs(PFN_vkGetInstanceProcAddr fp_vkGetInstanceProcAddr) {
 //        std::lock_guard<std::mutex> lg(init_mutex);
         if (!load_vulkan(fp_vkGetInstanceProcAddr)) return false;
         init_pre_instance_funcs();

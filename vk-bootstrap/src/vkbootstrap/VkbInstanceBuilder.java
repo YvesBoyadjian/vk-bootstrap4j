@@ -54,6 +54,8 @@ public class VkbInstanceBuilder {
         boolean enable_validation_layers = false;
         boolean use_debug_messenger = false;
         boolean headless_context = false;
+
+        VkbVulkanFunctions.PFN_vkGetInstanceProcAddr fp_vkGetInstanceProcAddr = null;
     }
 
     private final InstanceInfo info = new InstanceInfo();
@@ -88,7 +90,7 @@ public class VkbInstanceBuilder {
 
     /*573*/ public Result<VkbInstance> build() {
 
-        var sys_info_ret = VkbSystemInfo.get_system_info();
+        var sys_info_ret = VkbSystemInfo.get_system_info(info.fp_vkGetInstanceProcAddr);
         if (sys_info_ret.not()) return new Result(sys_info_ret.error());
         var system = sys_info_ret.value();
 

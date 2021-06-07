@@ -25,9 +25,15 @@ public class VkbSystemInfo {
     // Use get_system_info to create a SystemInfo struct. This is because loading vulkan could fail.
     /*505*/ public static Result<VkbSystemInfo> get_system_info() {
 
-        if (!vulkan_functions().init_vulkan_funcs(0)) {
+        if (!vulkan_functions().init_vulkan_funcs(null)) {
             return new Result(VkBootstrap.make_error_code(VkbInstanceError.vulkan_unavailable));
         }
+        return new Result(new VkbSystemInfo());
+    }
+
+    /*511*/ public static Result<VkbSystemInfo> get_system_info(VkbVulkanFunctions.PFN_vkGetInstanceProcAddr fp_vkGetInstanceProcAddr) {
+        // Using externally provided function pointers, assume the loader is available
+        vulkan_functions().init_vulkan_funcs(fp_vkGetInstanceProcAddr);
         return new Result(new VkbSystemInfo());
     }
 
