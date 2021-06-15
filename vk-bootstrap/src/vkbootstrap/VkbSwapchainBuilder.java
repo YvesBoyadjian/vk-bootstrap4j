@@ -11,6 +11,7 @@ import java.util.List;
 import static org.lwjgl.vulkan.KHRSurface.*;
 import static org.lwjgl.vulkan.KHRSwapchain.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 import static org.lwjgl.vulkan.VK10.*;
+import static vkbootstrap.VkBootstrap.QUEUE_INDEX_MAX_VALUE;
 import static vkbootstrap.VkBootstrap.vulkan_functions;
 
 public class VkbSwapchainBuilder {
@@ -39,7 +40,7 @@ public class VkbSwapchainBuilder {
 
     private final SwapchainInfo info = new SwapchainInfo();
 
-    public VkbSwapchainBuilder(final VkbDevice device) {
+    /*1518*/ public VkbSwapchainBuilder(final VkbDevice device) {
         info.device = device.device[0];
         info.physical_device = device.physical_device.physical_device;
         info.surface = device.surface;
@@ -50,6 +51,26 @@ public class VkbSwapchainBuilder {
         info.present_queue_index = graphics.value();
         info.allocation_callbacks = device.allocation_callbacks[0];
     }
+
+    public VkbSwapchainBuilder (VkPhysicalDevice physical_device, VkDevice device, /*VkSurfaceKHR*/long surface) {
+        this(physical_device,device,surface,-1,-1);
+    }
+    /*1540*/ public VkbSwapchainBuilder (VkPhysicalDevice physical_device, VkDevice device, /*VkSurfaceKHR*/long surface, int graphics_queue_index, int present_queue_index){
+        info.physical_device = physical_device;
+        info.device = device;
+        info.surface = surface;
+        info.graphics_queue_index = (int)(graphics_queue_index);
+        info.present_queue_index = (int)(present_queue_index);
+        if (graphics_queue_index == QUEUE_INDEX_MAX_VALUE || present_queue_index == QUEUE_INDEX_MAX_VALUE) {
+            var queue_families = VkBootstrap.get_vector_noerror/*<VkQueueFamilyProperties>*/ (
+                    VkBootstrap.vulkan_functions().fp_vkGetPhysicalDeviceQueueFamilyProperties, physical_device);
+            if (graphics_queue_index == QUEUE_INDEX_MAX_VALUE)
+                info.graphics_queue_index = (int)(VkBootstrap.get_first_queue_index (queue_families, VK_QUEUE_GRAPHICS_BIT));
+            if (present_queue_index == QUEUE_INDEX_MAX_VALUE)
+                info.present_queue_index = (int)(VkBootstrap.get_present_queue_index (physical_device, surface, queue_families));
+        }
+    }
+
     /*1655*/ public Result<VkbSwapchain> build() {
         if (info.surface == VK_NULL_HANDLE) {
             return new Result(new Error( new error_code(VkbSwapchainError.surface_handle_not_provided.ordinal()) ));
@@ -140,6 +161,24 @@ public class VkbSwapchainBuilder {
     /*1791*/
     public VkbSwapchainBuilder set_old_swapchain(final VkbSwapchain swapchain) {
         info.old_swapchain = swapchain.swapchain[0];
+        return this;
+    }
+
+    public VkbSwapchainBuilder set_desired_extent(int width, int height) {
+        info.desired_width = width;
+        info.desired_height = height;
+        return this;
+    }
+
+    /*1840*/ public VkbSwapchainBuilder use_default_format_selection() {
+        info.desired_formats.clear();
+        add_desired_formats(info.desired_formats);
+        return this;
+    }
+
+    /*1846*/
+    public VkbSwapchainBuilder set_desired_present_mode(/*VkPresentModeKHR*/int present_mode) {
+        info.desired_present_modes.add(/*info.desired_present_modes.begin()*/0, present_mode);
         return this;
     }
 

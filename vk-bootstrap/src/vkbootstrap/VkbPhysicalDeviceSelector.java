@@ -278,4 +278,8 @@ public class VkbPhysicalDeviceSelector {
         out_device.extensions_to_enable.addAll(desired_extensions_supported);
         return new Result(out_device);
     }
+    /*1212*/ public VkbPhysicalDeviceSelector set_minimum_version (int major, int minor) {
+        criteria.required_version = VK_MAKE_VERSION (major, minor, 0);
+        return this;
+    }
 }

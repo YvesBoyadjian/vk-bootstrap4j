@@ -267,6 +267,17 @@ public class VkbInstanceBuilder {
         return new Result(instance);
     }
 
+    /*733*/ public VkbInstanceBuilder set_app_name (String app_name) {
+        if (null == app_name) return this;
+        info.app_name = app_name;
+        return this;
+    }
+
+    /*751*/ public VkbInstanceBuilder require_api_version (int major, int minor, int patch) {
+        info.required_api_version = VK_MAKE_VERSION (major, minor, patch);
+        return this;
+    }
+
     // Checks if the validation layers are available and loads them if they are.
     /*784*/ public VkbInstanceBuilder request_validation_layers() {
         return request_validation_layers(true);
