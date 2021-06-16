@@ -6,5 +6,7 @@ public class Main {
         final VulkanEngine engine = new VulkanEngine();
 
         engine.init();
+
+        engine.run();
     }
 }

@@ -1,23 +1,38 @@
 package vulkanguide;
 
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import org.lwjgl.PointerBuffer;
+import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.util.vma.VmaAllocationCreateInfo;
 import org.lwjgl.util.vma.VmaAllocatorCreateInfo;
 import org.lwjgl.util.vma.VmaVulkanFunctions;
 import org.lwjgl.vulkan.*;
+import port.Port;
 import vkbootstrap.*;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.nio.LongBuffer;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 
+import static java.lang.Math.abs;
+import static java.lang.Math.sin;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.glfw.GLFWVulkan.glfwCreateWindowSurface;
 import static org.lwjgl.system.MemoryUtil.*;
+import static org.lwjgl.system.libc.LibCString.memcpy;
 import static org.lwjgl.util.vma.Vma.*;
 import static org.lwjgl.vulkan.KHRSurface.VK_PRESENT_MODE_FIFO_KHR;
-import static org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-import static org.lwjgl.vulkan.KHRSwapchain.vkDestroySwapchainKHR;
+import static org.lwjgl.vulkan.KHRSwapchain.*;
 import static org.lwjgl.vulkan.VK10.*;
 
 public class VulkanEngine {
@@ -78,6 +93,13 @@ public class VulkanEngine {
 
     public final UploadContext _uploadContext = new UploadContext();
 
+    //default array of renderable objects
+    public final List<RenderObject> _renderables = new ArrayList<>();
+
+    public final Map<String, Material> _materials = new HashMap<>();
+    public final Map<String, Mesh> _meshes = new HashMap<>();
+    public final Map<String, Texture> _loadedTextures = new HashMap<>();
+
     public VulkanEngine() {
         _windowExtent.width(1700);
         _windowExtent.height(900);
@@ -128,7 +150,7 @@ public class VulkanEngine {
         init_sync_structures();
 
         init_descriptors();
-/*
+
         init_pipelines();
 
         load_images();
@@ -137,9 +159,164 @@ public class VulkanEngine {
 
         init_scene();
 
- */
         //everything went fine
         _isInitialized = true;
+    }
+
+    void draw()
+    {
+
+        //wait until the gpu has finished rendering the last frame. Timeout of 1 second
+        VK_CHECK(VK10.vkWaitForFences(_device, /*1,*/ get_current_frame()._renderFence[0], true, 1000000000l));
+        VK_CHECK(vkResetFences(_device, /*1,*/ get_current_frame()._renderFence[0]));
+
+        //now that we are sure that the commands finished executing, we can safely reset the command buffer to begin recording again.
+        VK_CHECK(vkResetCommandBuffer(get_current_frame()._mainCommandBuffer, 0));
+
+        //request image from the swapchain
+        final int[] swapchainImageIndex = new int[1];
+        VK_CHECK(KHRSwapchain.vkAcquireNextImageKHR(_device, _swapchain, 1000000000l, get_current_frame()._presentSemaphore[0], 0, swapchainImageIndex));
+
+        //naming it cmd for shorter writing
+        VkCommandBuffer cmd = get_current_frame()._mainCommandBuffer;
+
+        //begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
+        VkCommandBufferBeginInfo cmdBeginInfo = VkInit.command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+        VK_CHECK(vkBeginCommandBuffer(cmd, cmdBeginInfo));
+
+        //make a clear-color from frame number. This will flash with a 120 frame period.
+        final VkClearValue clearValue = VkClearValue.create();
+        float flash = (float)abs(sin(_frameNumber / 120.f));
+
+        VkClearColorValue dummy = VkClearColorValue.create();
+        dummy.float32(0,0.0f);
+        dummy.float32(1,0.0f);
+        dummy.float32(2,flash);
+        dummy.float32(3,1.0f);
+
+        clearValue.color ( dummy/*{ { 0.0f, 0.0f, flash, 1.0f } }*/);
+
+        //clear depth at 1
+        final VkClearValue depthClear = VkClearValue.create();
+        depthClear.depthStencil().depth ( 1.f);
+
+        //start the main renderpass.
+        //We will use the clear color from above, and the framebuffer of the index the swapchain gave us
+        VkRenderPassBeginInfo rpInfo = VkInit.renderpass_begin_info(_renderPass[0], _windowExtent, _framebuffers.get(swapchainImageIndex[0])[0]);
+
+        //connect clear values
+        // rpInfo.clearValueCount ( 2); java port
+
+        VkClearValue.Buffer clearValues = VkClearValue.create(2);
+        clearValues.put(0, clearValue);
+        clearValues.put(1, depthClear);
+
+        rpInfo.pClearValues ( clearValues);
+
+        vkCmdBeginRenderPass(cmd, rpInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+        draw_objects(cmd, _renderables/*.data()*/, _renderables.size());
+
+        //finalize the render pass
+        vkCmdEndRenderPass(cmd);
+        //finalize the command buffer (we can no longer add commands, but it can now be executed)
+        VK_CHECK(vkEndCommandBuffer(cmd));
+
+        //prepare the submission to the queue.
+        //we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
+        //we will signal the _renderSemaphore, to signal that rendering has finished
+
+        VkSubmitInfo submit = VkInit.submit_info(cmd);
+        /*VkPipelineStageFlags*/int waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+        IntBuffer dummy7 = memAllocInt(1);
+        dummy7.put(0,waitStage);
+
+        submit.pWaitDstStageMask ( /*waitStage*/dummy7);
+
+        submit.waitSemaphoreCount ( 1);
+
+        LongBuffer dummy6 = memAllocLong(1);
+        dummy6.put(0,get_current_frame()._presentSemaphore[0]);
+
+        submit.pWaitSemaphores ( /*get_current_frame()._presentSemaphore*/dummy6);
+
+        //submit.signalSemaphoreCount ( 1); java port
+
+        LongBuffer dummy5 = memAllocLong(1);
+        dummy5.put(0,get_current_frame()._renderSemaphore[0]);
+
+        submit.pSignalSemaphores ( /*get_current_frame()._renderSemaphore*/dummy5);
+
+        //submit command buffer to the queue and execute it.
+        // _renderFence will now block until the graphic commands finish execution
+        VK_CHECK(vkQueueSubmit(_graphicsQueue, /*1,*/ submit, get_current_frame()._renderFence[0]));
+
+        //prepare present
+        // this will put the image we just rendered to into the visible window.
+        // we want to wait on the _renderSemaphore for that,
+        // as its necessary that drawing commands have finished before the image is displayed to the user
+        final VkPresentInfoKHR presentInfo = VkInit.present_info();
+
+        LongBuffer dummy4 = memAllocLong(1);
+        dummy4.put(0,_swapchain);
+
+        presentInfo.pSwapchains ( /*_swapchain*/dummy4);
+        presentInfo.swapchainCount ( 1);
+
+        LongBuffer dummy3 = memAllocLong(1);
+        dummy3.put(0,get_current_frame()._renderSemaphore[0]);
+
+        presentInfo.pWaitSemaphores ( /*get_current_frame()._renderSemaphore*/dummy3);
+        //presentInfo.waitSemaphoreCount ( 1); java port
+
+        IntBuffer dummy2 = memAllocInt(1);
+        dummy2.put(0,swapchainImageIndex[0]);
+
+        presentInfo.pImageIndices ( /*swapchainImageIndex*/dummy2);
+
+        VK_CHECK(vkQueuePresentKHR(_graphicsQueue, presentInfo));
+
+        //increase the number of frames drawn
+        _frameNumber++;
+    }
+
+    /*186*/ public void run()
+    {
+        //SDL_Event e;
+        boolean bQuit = false;
+
+        //main loop
+        while (!glfwWindowShouldClose (_window))
+        {
+            //Handle events on queue
+            glfwPollEvents ();
+                //close the window when user alt-f4s or clicks the X button
+//                if (e.type == SDL_QUIT)
+//                {
+//                    bQuit = true;
+//                }
+//                else if (e.type == SDL_KEYDOWN)
+//                {
+//                    if (e.key.keysym.sym == SDLK_SPACE)
+//                    {
+//                        _selectedShader += 1;
+//                        if (_selectedShader > 1)
+//                        {
+//                            _selectedShader = 0;
+//                        }
+//                    }
+//                }
+
+
+            draw();
+        }
+    }
+
+    /*219*/ FrameData get_current_frame()
+    {
+        return _frames[_frameNumber % FRAME_OVERLAP];
     }
 
     /*230*/ public void init_vulkan()
@@ -458,6 +635,390 @@ public class VulkanEngine {
     });
     }
 
+    /*519*/ public void init_pipelines()
+    {
+        /*VkShaderModule*/final long[] colorMeshShader = new long[1];
+        if (!load_shader_module("../../shaders/default_lit.frag.spv", colorMeshShader))
+        {
+            if (!load_shader_module("vk-bootstrap/src/vulkanguide/shaders/default_lit.frag.spv", colorMeshShader))
+            {
+                System.out.println("Error when building the colored mesh shader");
+            }
+        }
+
+        /*VkShaderModule*/final long[] texturedMeshShader = new long[1];
+        if (!load_shader_module("../../shaders/textured_lit.frag.spv", texturedMeshShader))
+        {
+            if (!load_shader_module("vk-bootstrap/src/vulkanguide/shaders/textured_lit.frag.spv", texturedMeshShader)) {
+                System.out.println("Error when building the colored mesh shader");
+            }
+        }
+
+        /*VkShaderModule*/final long[] meshVertShader = new long[1];
+        if (!load_shader_module("../../shaders/tri_mesh_ssbo.vert.spv", meshVertShader))
+        {
+            if (!load_shader_module("vk-bootstrap/src/vulkanguide/shaders/tri_mesh_ssbo.vert.spv", meshVertShader)) {
+                System.out.println("Error when building the mesh vertex shader module");
+            }
+        }
+
+
+        //build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
+        final PipelineBuilder pipelineBuilder = new PipelineBuilder();
+
+        pipelineBuilder._shaderStages.add(
+                VkInit.pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, meshVertShader[0]));
+
+        pipelineBuilder._shaderStages.add(
+                VkInit.pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, colorMeshShader[0]));
+
+
+        //we start from just the default empty pipeline layout info
+        VkPipelineLayoutCreateInfo mesh_pipeline_layout_info = VkInit.pipeline_layout_create_info();
+
+        //setup push constants
+        final VkPushConstantRange.Buffer push_constant = VkPushConstantRange.create(1);
+        //offset 0
+        push_constant.offset ( 0);
+        //size of a MeshPushConstant struct
+        push_constant.size ( MeshPushConstants.sizeof());
+        //for the vertex shader
+        push_constant.stageFlags ( VK_SHADER_STAGE_VERTEX_BIT);
+
+        mesh_pipeline_layout_info.pPushConstantRanges ( push_constant);
+        //mesh_pipeline_layout_info.pushConstantRangeCount ( 1); java port
+
+        /*VkDescriptorSetLayout*/LongBuffer setLayouts = memAllocLong(2);
+        setLayouts.put(0,_globalSetLayout[0]);
+        setLayouts.put(1,_objectSetLayout[0]);
+
+        //mesh_pipeline_layout_info.setLayoutCount ( 2); java port
+        mesh_pipeline_layout_info.pSetLayouts ( setLayouts);
+
+        /*VkPipelineLayout*/final long[] meshPipLayout = new long[1];
+        VK_CHECK(VK10.vkCreatePipelineLayout(_device, mesh_pipeline_layout_info, null, meshPipLayout));
+
+
+        //we start from  the normal mesh layout
+        VkPipelineLayoutCreateInfo textured_pipeline_layout_info = mesh_pipeline_layout_info;
+
+        /*VkDescriptorSetLayout*/final LongBuffer texturedSetLayouts = memAllocLong(3);
+        texturedSetLayouts.put(0,_globalSetLayout[0]);
+        texturedSetLayouts.put(1,_objectSetLayout[0]);
+        texturedSetLayouts.put(2,_singleTextureSetLayout[0]);
+
+        //textured_pipeline_layout_info.setLayoutCount ( 3); java port
+        textured_pipeline_layout_info.pSetLayouts ( texturedSetLayouts);
+
+        /*VkPipelineLayout*/final long[] texturedPipeLayout = new long[1];
+        VK_CHECK(vkCreatePipelineLayout(_device, textured_pipeline_layout_info, null, texturedPipeLayout));
+
+        //hook the push constants layout
+        pipelineBuilder._pipelineLayout = meshPipLayout[0];
+
+        //vertex input controls how to read vertices from vertex buffers. We arent using it yet
+        pipelineBuilder._vertexInputInfo = VkInit.vertex_input_state_create_info();
+
+        //input assembly is the configuration for drawing triangle lists, strips, or individual points.
+        //we are just going to draw triangle list
+        pipelineBuilder._inputAssembly = VkInit.input_assembly_create_info(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+
+        //build viewport and scissor from the swapchain extents
+        pipelineBuilder._viewport.x ( 0.0f);
+        pipelineBuilder._viewport.y ( 0.0f);
+        pipelineBuilder._viewport.width ( (float)_windowExtent.width());
+        pipelineBuilder._viewport.height ( (float)_windowExtent.height());
+        pipelineBuilder._viewport.minDepth ( 0.0f);
+        pipelineBuilder._viewport.maxDepth ( 1.0f);
+
+        VkOffset2D dummy = VkOffset2D.create();
+        dummy.x(0); dummy.y(0);
+        pipelineBuilder._scissor.offset ( dummy);
+        pipelineBuilder._scissor.extent ( _windowExtent);
+
+        //configure the rasterizer to draw filled triangles
+        pipelineBuilder._rasterizer = VkInit.rasterization_state_create_info(VK_POLYGON_MODE_FILL);
+
+        //we dont use multisampling, so just run the default one
+        pipelineBuilder._multisampling = VkInit.multisampling_state_create_info();
+
+        //a single blend attachment with no blending and writing to RGBA
+        pipelineBuilder._colorBlendAttachment.put(0, VkInit.color_blend_attachment_state());
+
+
+        //default depthtesting
+        pipelineBuilder._depthStencil = VkInit.depth_stencil_create_info(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+
+        //build the mesh pipeline
+
+        VertexInputDescription vertexDescription = Vertex.get_vertex_description();
+
+        //connect the pipeline builder vertex input info to the one we get from Vertex
+        VkVertexInputAttributeDescription.Buffer dummy1 = VkVertexInputAttributeDescription.create(vertexDescription.attributes.size());
+        for( int i=0; i< vertexDescription.attributes.size();i++) dummy1.put(i,vertexDescription.attributes.get(i));
+        pipelineBuilder._vertexInputInfo.pVertexAttributeDescriptions ( /*vertexDescription.attributes.data()*/dummy1);
+        //pipelineBuilder._vertexInputInfo.vertexAttributeDescriptionCount ( vertexDescription.attributes.size()); java port
+
+        VkVertexInputBindingDescription.Buffer dummy2 = VkVertexInputBindingDescription.create(vertexDescription.bindings.size());
+        for( int i=0; i<vertexDescription.bindings.size();i++) dummy2.put(i,vertexDescription.bindings.get(i));
+        pipelineBuilder._vertexInputInfo.pVertexBindingDescriptions ( /*vertexDescription.bindings.data()*/dummy2);
+        //pipelineBuilder._vertexInputInfo.vertexBindingDescriptionCount ( vertexDescription.bindings.size()); java port
+
+
+        //build the mesh triangle pipeline
+        /*VkPipeline*/long meshPipeline = pipelineBuilder.build_pipeline(_device, _renderPass[0]);
+
+        create_material(meshPipeline, meshPipLayout[0], "defaultmesh");
+
+        pipelineBuilder._shaderStages.clear();
+        pipelineBuilder._shaderStages.add(
+                VkInit.pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, meshVertShader[0]));
+
+        pipelineBuilder._shaderStages.add(
+                VkInit.pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, texturedMeshShader[0]));
+
+        pipelineBuilder._pipelineLayout = texturedPipeLayout[0];
+        /*VkPipeline*/long texPipeline = pipelineBuilder.build_pipeline(_device, _renderPass[0]);
+        create_material(texPipeline, texturedPipeLayout[0], "texturedmesh");
+
+
+        vkDestroyShaderModule(_device, meshVertShader[0], null);
+        vkDestroyShaderModule(_device, colorMeshShader[0], null);
+        vkDestroyShaderModule(_device, texturedMeshShader[0], null);
+
+
+        _mainDeletionQueue.push_function(() -> {
+        vkDestroyPipeline(_device, meshPipeline, null);
+        vkDestroyPipeline(_device, texPipeline, null);
+
+        vkDestroyPipelineLayout(_device, meshPipLayout[0], null);
+        vkDestroyPipelineLayout(_device, texturedPipeLayout[0], null);
+    });
+    }
+
+    /*662*/ public boolean load_shader_module(String filePath, /*VkShaderModule**/final long[] outShaderModule)
+    {
+        //open the file. With cursor at the end
+        ByteBuffer buffer;
+        try {
+            FileInputStream file = new FileInputStream(filePath);
+
+//            if (!file.is_open()) {
+//                return false;
+//            }
+
+            //find what the size of the file is by looking up the location of the cursor
+            //because the cursor is at the end, it gives the size directly in bytes
+            //size_t fileSize = (size_t) file.tellg();
+
+            //spirv expects the buffer to be on uint32, so make sure to reserve a int vector big enough for the entire file
+
+            //put file cursor at beggining
+            //file.seekg(0);
+
+            //load the entire file into the buffer
+            //file.read(( char*)buffer.data(), fileSize);
+            FileChannel fc = file.getChannel();
+            buffer = fc.map(FileChannel.MapMode.READ_ONLY, 0, fc.size());
+            fc.close();
+
+            //now that the file is loaded into the buffer, we can close it
+            file.close();
+        } catch (IOException e) {
+            return false;
+        }
+
+        //create a new shader module, using the buffer we loaded
+        final VkShaderModuleCreateInfo createInfo = VkShaderModuleCreateInfo.create();
+        createInfo.sType ( VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
+        createInfo.pNext ( 0);
+
+        //codeSize has to be in bytes, so multply the ints in the buffer by size of int to know the real size of the buffer
+        //createInfo.codeSize ( buffer.capacity() * Integer.BYTES); java port
+        createInfo.pCode ( buffer);
+
+        //check that the creation goes well.
+        /*VkShaderModule*/final long[] shaderModule = new long[1];
+        if (vkCreateShaderModule(_device, createInfo, null, shaderModule) != VK_SUCCESS) {
+        return false;
+    }
+	outShaderModule[0] = shaderModule[0];
+        return true;
+    }
+
+    /*762*/ void load_meshes()
+    {
+        final Mesh triMesh = new Mesh();
+        //make the array 3 vertices long
+        //triMesh._vertices.resize(3);
+        triMesh._vertices.clear();
+        for( int i=0; i<3; i++) {
+            triMesh._vertices.add(new Vertex());
+        }
+
+        //vertex positions
+        triMesh._vertices.get(0).position.set( 1.f,1.f, 0.0f );
+        triMesh._vertices.get(1).position.set( -1.f,1.f, 0.0f );
+        triMesh._vertices.get(2).position.set( 0.f,-1.f, 0.0f );
+
+        //vertex colors, all green
+        triMesh._vertices.get(0).color.set( 0.f,1.f, 0.0f ); //pure green
+        triMesh._vertices.get(1).color.set( 0.f,1.f, 0.0f ); //pure green
+        triMesh._vertices.get(2).color.set( 0.f,1.f, 0.0f ); //pure green
+        //we dont care about the vertex normals
+
+        //load the monkey
+        final Mesh monkeyMesh = new Mesh();
+        if (!monkeyMesh.load_from_obj("../../assets/monkey_smooth.obj")) {
+            monkeyMesh.load_from_obj("vulkanguide/assets/monkey_smooth.obj");
+        }
+
+        final Mesh lostEmpire = new Mesh();
+        if(!lostEmpire.load_from_obj("../../assets/lost_empire.obj")) {
+            lostEmpire.load_from_obj("vulkanguide/assets/lost_empire.obj");
+        }
+
+        upload_mesh(triMesh);
+        upload_mesh(monkeyMesh);
+        upload_mesh(lostEmpire);
+
+        _meshes.put("monkey", monkeyMesh);
+        _meshes.put("triangle", triMesh);
+        _meshes.put("empire", lostEmpire);
+    }
+
+    /*796*/ void load_images()
+    {
+        final Texture lostEmpire = new Texture();
+
+        if(!VkUtil.load_image_from_file(this, "../../assets/lost_empire-RGBA.png", lostEmpire.image)) {
+            VkUtil.load_image_from_file(this, "vk-bootstrap/src/vulkanguide/assets/lost_empire-RGBA.png", lostEmpire.image);
+        }
+
+        VkImageViewCreateInfo imageinfo = VkInit.imageview_create_info(VK_FORMAT_R8G8B8A8_SRGB, lostEmpire.image[0]._image, VK_IMAGE_ASPECT_COLOR_BIT);
+        VK10.vkCreateImageView(_device, imageinfo, null, lostEmpire.imageView);
+
+        _mainDeletionQueue.push_function(() -> {
+        vkDestroyImageView(_device, lostEmpire.imageView[0], null);
+    });
+
+        _loadedTextures.put("empire_diffuse", lostEmpire);
+    }
+
+    /*812*/ void upload_mesh(Mesh mesh)
+    {
+	long bufferSize= mesh._vertices.size() * Vertex.sizeof();
+        //allocate vertex buffer
+        final VkBufferCreateInfo stagingBufferInfo = VkBufferCreateInfo.create();
+        stagingBufferInfo.sType ( VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
+        stagingBufferInfo.pNext ( 0);
+        //this is the total size, in bytes, of the buffer we are allocating
+        stagingBufferInfo.size ( bufferSize);
+        //this buffer is going to be used as a Vertex Buffer
+        stagingBufferInfo.usage ( VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+
+
+        //let the VMA library know that this data should be writeable by CPU, but also readable by GPU
+        final VmaAllocationCreateInfo vmaallocInfo = VmaAllocationCreateInfo.create();
+        vmaallocInfo.usage ( VMA_MEMORY_USAGE_CPU_ONLY);
+
+        final AllocatedBuffer stagingBuffer = new AllocatedBuffer();
+
+        LongBuffer dummy1 = memAllocLong(1);
+        PointerBuffer dummy2 = memAllocPointer(1);
+
+        //allocate the buffer
+        VK_CHECK(vmaCreateBuffer(_allocator, stagingBufferInfo, vmaallocInfo,
+		/*stagingBuffer._buffer*/dummy1,
+		/*stagingBuffer._allocation*/dummy2,
+            null));
+
+        stagingBuffer._buffer = dummy1.get(0);
+        stagingBuffer._allocation = dummy2.get(0);
+
+        memFree(dummy1);
+        memFree(dummy2);
+
+        //copy vertex data
+        PointerBuffer data = memAllocPointer(1);
+        vmaMapMemory(_allocator, stagingBuffer._allocation, data);
+
+        Buffer dummy = Port.data(mesh._vertices);
+
+        MemoryUtil.memCopy(memAddress(dummy), data.get(),  mesh._vertices.size() * Vertex.sizeof());
+
+        vmaUnmapMemory(_allocator, stagingBuffer._allocation);
+
+
+        //allocate vertex buffer
+        final VkBufferCreateInfo vertexBufferInfo = VkBufferCreateInfo.create();
+        vertexBufferInfo.sType ( VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
+        vertexBufferInfo.pNext ( 0);
+        //this is the total size, in bytes, of the buffer we are allocating
+        vertexBufferInfo.size ( bufferSize);
+        //this buffer is going to be used as a Vertex Buffer
+        vertexBufferInfo.usage ( VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+
+        //let the VMA library know that this data should be gpu native
+        vmaallocInfo.usage ( VMA_MEMORY_USAGE_GPU_ONLY);
+
+        LongBuffer dummy3 = memAllocLong(1);
+        PointerBuffer dummy4 = memAllocPointer(1);
+
+        //allocate the buffer
+        VK_CHECK(vmaCreateBuffer(_allocator, vertexBufferInfo, vmaallocInfo,
+		/*mesh._vertexBuffer._buffer*/dummy3,
+		/*mesh._vertexBuffer._allocation*/dummy4,
+            null));
+
+        mesh._vertexBuffer._buffer = dummy3.get(0);
+        mesh._vertexBuffer._allocation = dummy4.get(0);
+
+        memFree(dummy3);
+        memFree(dummy4);
+
+        //add the destruction of triangle mesh buffer to the deletion queue
+        _mainDeletionQueue.push_function(() -> {
+
+        vmaDestroyBuffer(_allocator, mesh._vertexBuffer._buffer, mesh._vertexBuffer._allocation);
+    });
+
+        immediate_submit((VkCommandBuffer cmd) -> {
+        final VkBufferCopy.Buffer copy = VkBufferCopy.create(1);
+        copy.dstOffset ( 0);
+        copy.srcOffset ( 0);
+        copy.size ( bufferSize);
+        vkCmdCopyBuffer(cmd, stagingBuffer._buffer, mesh._vertexBuffer._buffer, /*1,*/ copy);
+    });
+
+        vmaDestroyBuffer(_allocator, stagingBuffer._buffer, stagingBuffer._allocation);
+    }
+
+    /*881*/ Material create_material(/*VkPipeline*/long pipeline, /*VkPipelineLayout*/long layout, String name)
+    {
+        final Material mat = new Material();
+        mat.pipeline = pipeline;
+        mat.pipelineLayout = layout;
+        _materials.put(name, mat);
+        return _materials.get(name);
+    }
+
+    /*890*/ Material get_material(String name)
+    {
+        //search for the object, and return nullpointer if not found
+        return _materials.get(name);
+    }
+
+    /*903*/ Mesh get_mesh(String name)
+    {
+        return _meshes.get(name);
+    }
+
+    /*914*/ void draw_objects(VkCommandBuffer cmd, List<RenderObject> first, int count)
+    {
+        //TODO
+    }
+
     /*1104*/ long pad_uniform_buffer_size(long originalSize)
     {
         // Calculate required alignment based on minimum device offset alignment
@@ -467,6 +1028,75 @@ public class VulkanEngine {
             alignedSize = (alignedSize + minUboAlignment - 1) & ~(minUboAlignment - 1);
         }
         return alignedSize;
+    }
+
+    /*1017*/ void init_scene()
+    {
+        final RenderObject monkey = new RenderObject();
+        monkey.mesh = get_mesh("monkey");
+        monkey.material = get_material("defaultmesh");
+        monkey.transformMatrix.set( new Matrix4f() );//glm::mat4{ 1.0f };
+
+        _renderables.add(monkey);
+
+        final RenderObject map = new RenderObject();
+        map.mesh = get_mesh("empire");
+        map.material = get_material("texturedmesh");
+        map.transformMatrix.set( new Matrix4f().translate(new Vector3f( 5,-10,0 ))); //glm::mat4{ 1.0f };
+
+        _renderables.add(map);
+
+        for (int x = -20; x <= 20; x++) {
+            for (int y = -20; y <= 20; y++) {
+
+                final RenderObject tri = new RenderObject();
+                tri.mesh = get_mesh("triangle");
+                tri.material = get_material("defaultmesh");
+                Matrix4f translation = new Matrix4f().translate(new Vector3f(x, 0, y));
+                Matrix4f scale = (new Matrix4f().scale(new Vector3f(0.2f, 0.2f, 0.2f)));
+                tri.transformMatrix.set( translation.mul(scale));
+
+                _renderables.add(tri);
+            }
+        }
+
+
+        Material texturedMat=	get_material("texturedmesh");
+
+        final VkDescriptorSetAllocateInfo allocInfo = VkDescriptorSetAllocateInfo.create();
+        allocInfo.pNext ( 0);
+        allocInfo.sType ( VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO);
+        allocInfo.descriptorPool ( _descriptorPool[0]);
+        //allocInfo.descriptorSetCount ( 1); java port
+
+        LongBuffer dummy1 = memAllocLong(1);
+        dummy1.put(0,_singleTextureSetLayout[0]);
+
+        allocInfo.pSetLayouts ( /*_singleTextureSetLayout*/dummy1);
+
+        VK10.vkAllocateDescriptorSets(_device, allocInfo, texturedMat.textureSet);
+
+        memFree(dummy1);
+
+        VkSamplerCreateInfo samplerInfo = VkInit.sampler_create_info(VK_FILTER_NEAREST);
+
+        /*VkSampler*/final long[] blockySampler = new long[1];
+        vkCreateSampler(_device, samplerInfo, null, blockySampler);
+
+        _mainDeletionQueue.push_function(() -> {
+        vkDestroySampler(_device, blockySampler[0], null);
+    });
+
+        final VkDescriptorImageInfo imageBufferInfo = VkDescriptorImageInfo.create();
+        imageBufferInfo.sampler ( blockySampler[0]);
+        imageBufferInfo.imageView ( _loadedTextures.get("empire_diffuse").imageView[0]);
+        imageBufferInfo.imageLayout ( VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        VkWriteDescriptorSet texture1 = VkInit.write_descriptor_image(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, texturedMat.textureSet[0], imageBufferInfo, 0);
+
+        VkWriteDescriptorSet.Buffer dummy = VkWriteDescriptorSet.create(1); dummy.put(0,texture1);
+
+        vkUpdateDescriptorSets(_device, /*1,*/ /*texture1*/dummy, /*0,*/ null);
     }
 
     /*1078*/ AllocatedBuffer create_buffer(long allocSize, /*VkBufferUsageFlags*/int usage, /*VmaMemoryUsage*/int memoryUsage)
@@ -502,6 +1132,43 @@ public class VulkanEngine {
         memFree(dummy2);
 
         return newBuffer;
+    }
+
+    /*1116*/ void immediate_submit(Consumer<VkCommandBuffer> function)
+    {
+        final VkCommandBuffer cmd;
+
+        //allocate the default command buffer that we will use for rendering
+        VkCommandBufferAllocateInfo cmdAllocInfo = VkInit.command_buffer_allocate_info(_uploadContext._commandPool[0], 1);
+
+        PointerBuffer dummy1 = memAllocPointer(1);
+        VK_CHECK(vkAllocateCommandBuffers(_device, cmdAllocInfo, /*cmd*/dummy1));
+        cmd = new VkCommandBuffer(dummy1.get(0),_device);
+
+        memFree(dummy1);
+
+        //begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
+        VkCommandBufferBeginInfo cmdBeginInfo = VkInit.command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+        VK_CHECK(vkBeginCommandBuffer(cmd, cmdBeginInfo));
+
+
+        function.accept(cmd);
+
+
+        VK_CHECK(vkEndCommandBuffer(cmd));
+
+        VkSubmitInfo submit = VkInit.submit_info(cmd);
+
+
+        //submit command buffer to the queue and execute it.
+        // _renderFence will now block until the graphic commands finish execution
+        VK_CHECK(vkQueueSubmit(_graphicsQueue, /*1,*/ submit, _uploadContext._uploadFence[0]));
+
+        VK10.vkWaitForFences(_device, /*1,*/ _uploadContext._uploadFence, true, 9999999999l);
+        VK10.vkResetFences(_device, /*1,*/ _uploadContext._uploadFence[0]);
+
+        vkResetCommandPool(_device, _uploadContext._commandPool[0], 0);
     }
 
     /*1149*/ public void init_descriptors()
