@@ -2,6 +2,7 @@ package vulkanguide;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.util.vma.VmaAllocationCreateInfo;
@@ -24,8 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import static java.lang.Math.abs;
-import static java.lang.Math.sin;
+import static java.lang.Math.*;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.glfw.GLFWVulkan.glfwCreateWindowSurface;
 import static org.lwjgl.system.MemoryUtil.*;
@@ -34,6 +34,7 @@ import static org.lwjgl.util.vma.Vma.*;
 import static org.lwjgl.vulkan.KHRSurface.VK_PRESENT_MODE_FIFO_KHR;
 import static org.lwjgl.vulkan.KHRSwapchain.*;
 import static org.lwjgl.vulkan.VK10.*;
+import static tests.Common.destroy_window_glfw;
 
 public class VulkanEngine {
 
@@ -162,8 +163,27 @@ public class VulkanEngine {
         //everything went fine
         _isInitialized = true;
     }
+    /*77*/ void cleanup()
+    {
+        if (_isInitialized) {
 
-    void draw()
+            //make sure the gpu has stopped doing its things
+            vkDeviceWaitIdle(_device);
+
+            _mainDeletionQueue.flush();
+
+            KHRSurface.vkDestroySurfaceKHR(_instance, _surface[0], null);
+
+            vkDestroyDevice(_device, null);
+            VkBootstrap.destroy_debug_utils_messenger(_instance, _debug_messenger);
+            vkDestroyInstance(_instance, null);
+
+            //SDL_DestroyWindow(_window);
+            destroy_window_glfw (_window);
+        }
+    }
+
+    /*96*/ void draw()
     {
 
         //wait until the gpu has finished rendering the last frame. Timeout of 1 second
@@ -933,7 +953,7 @@ public class VulkanEngine {
 		/*stagingBuffer._allocation*/dummy2,
             null));
 
-        stagingBuffer._buffer = dummy1.get(0);
+        stagingBuffer._buffer[0] = dummy1.get(0);
         stagingBuffer._allocation = dummy2.get(0);
 
         memFree(dummy1);
@@ -971,7 +991,7 @@ public class VulkanEngine {
 		/*mesh._vertexBuffer._allocation*/dummy4,
             null));
 
-        mesh._vertexBuffer._buffer = dummy3.get(0);
+        mesh._vertexBuffer._buffer[0] = dummy3.get(0);
         mesh._vertexBuffer._allocation = dummy4.get(0);
 
         memFree(dummy3);
@@ -980,7 +1000,7 @@ public class VulkanEngine {
         //add the destruction of triangle mesh buffer to the deletion queue
         _mainDeletionQueue.push_function(() -> {
 
-        vmaDestroyBuffer(_allocator, mesh._vertexBuffer._buffer, mesh._vertexBuffer._allocation);
+        vmaDestroyBuffer(_allocator, mesh._vertexBuffer._buffer[0], mesh._vertexBuffer._allocation);
     });
 
         immediate_submit((VkCommandBuffer cmd) -> {
@@ -988,10 +1008,10 @@ public class VulkanEngine {
         copy.dstOffset ( 0);
         copy.srcOffset ( 0);
         copy.size ( bufferSize);
-        vkCmdCopyBuffer(cmd, stagingBuffer._buffer, mesh._vertexBuffer._buffer, /*1,*/ copy);
+        vkCmdCopyBuffer(cmd, stagingBuffer._buffer[0], mesh._vertexBuffer._buffer[0], /*1,*/ copy);
     });
 
-        vmaDestroyBuffer(_allocator, stagingBuffer._buffer, stagingBuffer._allocation);
+        vmaDestroyBuffer(_allocator, stagingBuffer._buffer[0], stagingBuffer._allocation);
     }
 
     /*881*/ Material create_material(/*VkPipeline*/long pipeline, /*VkPipelineLayout*/long layout, String name)
@@ -1016,7 +1036,107 @@ public class VulkanEngine {
 
     /*914*/ void draw_objects(VkCommandBuffer cmd, List<RenderObject> first, int count)
     {
-        //TODO
+        //make a model view matrix for rendering the object
+        //camera view
+        Vector3f camPos = new Vector3f( 0.f,-6.f,-10.f );
+
+        Matrix4f view = new Matrix4f().translate(camPos);
+        //camera projection
+        Matrix4f projection = new Matrix4f().perspective((float)Math.toRadians(70.f), 1700.f / 900.f, 0.1f, 200.0f);
+        projection.m11( projection.m11() * -1);
+
+        final GPUCameraData camData = new GPUCameraData();
+        camData.proj.set( projection);
+        camData.view.set( view);
+        camData.viewproj.set( projection.mul( view));
+
+        PointerBuffer data = memAllocPointer(1);
+        vmaMapMemory(_allocator, get_current_frame().cameraBuffer._allocation, data);
+
+        Buffer dummy = camData.toBuffer();
+
+        /*memcpy*/MemoryUtil.memCopy(/*data,*/ /*camData*/memAddress(dummy), data.get(), GPUCameraData.sizeof());
+
+        vmaUnmapMemory(_allocator, get_current_frame().cameraBuffer._allocation);
+
+        float framed = (_frameNumber / 120.f);
+
+        _sceneParameters.ambientColor.set(new Vector4f( (float)sin(framed),0,(float)cos(framed),1 ));
+
+        PointerBuffer sceneData_ = memAllocPointer(1);
+        vmaMapMemory(_allocator, _sceneParameterBuffer._allocation , sceneData_);
+
+        int frameIndex = _frameNumber % FRAME_OVERLAP;
+
+        long sceneData = sceneData_.get();
+
+        sceneData += pad_uniform_buffer_size(GPUSceneData.sizeof()) * frameIndex;
+
+        /*memcpy*/MemoryUtil.memCopy(/*sceneData,*/ memAddress(_sceneParameters.toBuffer()), sceneData, GPUSceneData.sizeof());
+
+        vmaUnmapMemory(_allocator, _sceneParameterBuffer._allocation);
+
+
+        PointerBuffer objectData = memAllocPointer(1);
+        vmaMapMemory(_allocator, get_current_frame().objectBuffer._allocation, objectData);
+
+        /*GPUObjectData*/long objectSSBO = objectData.get(0);
+
+        for (int i = 0; i < count; i++)
+        {
+            RenderObject object = first.get(i);
+            GPUObjectData.setModelMatrix(objectSSBO + i* GPUObjectData.sizeof(), object.transformMatrix);
+        }
+
+        vmaUnmapMemory(_allocator, get_current_frame().objectBuffer._allocation);
+
+        Mesh lastMesh = null;
+        Material lastMaterial = null;
+
+        for (int i = 0; i < count; i++)
+        {
+            RenderObject object = first.get(i);
+
+            //only bind the pipeline if it doesnt match with the already bound one
+            if (object.material != lastMaterial) {
+
+                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material.pipeline);
+                lastMaterial = object.material;
+
+                int uniform_offset = (int)pad_uniform_buffer_size(GPUSceneData.sizeof()) * frameIndex;
+                int[] dummy1 = new int[1]; dummy1[0] = uniform_offset;
+                VK10.vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material.pipelineLayout, 0, /*1,*/ get_current_frame().globalDescriptor, /*1,*/ /*uniform_offset*/dummy1);
+
+                //object data descriptor
+                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material.pipelineLayout, 1, /*1,*/ get_current_frame().objectDescriptor, /*0,*/ null);
+
+                if (object.material.textureSet[0] != VK_NULL_HANDLE) {
+                    //texture descriptor
+                    VK10.vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material.pipelineLayout, 2, /*1,*/ object.material.textureSet, /*0,*/ null);
+
+                }
+            }
+
+            Matrix4f model = object.transformMatrix;
+            //final render matrix, that we are calculating on the cpu
+            Matrix4f mesh_matrix = model;
+
+            final MeshPushConstants constants = new MeshPushConstants();
+            constants.render_matrix.set( mesh_matrix);
+
+            //upload the mesh to the gpu via pushconstants
+            VK10.vkCmdPushConstants(cmd, object.material.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, /*MeshPushConstants.sizeof(),*/ constants.toFloatBuffer());
+
+            //only bind the mesh if its a different one from last bind
+            if (object.mesh != lastMesh) {
+                //bind the mesh vertex buffer with offset 0
+                final /*VkDeviceSize*/long[] offset = new long[1];
+                VK10.vkCmdBindVertexBuffers(cmd, 0, /*1,*/ object.mesh._vertexBuffer._buffer, offset);
+                lastMesh = object.mesh;
+            }
+            //we can now draw
+            vkCmdDraw(cmd, object.mesh._vertices.size(), 1,0 , i);
+        }
     }
 
     /*1104*/ long pad_uniform_buffer_size(long originalSize)
@@ -1125,7 +1245,7 @@ public class VulkanEngine {
 		/*newBuffer._allocation*/dummy2,
             null));
 
-        newBuffer._buffer = dummy1.get(0);
+        newBuffer._buffer[0] = dummy1.get(0);
         newBuffer._allocation = dummy2.get(0);
 
         memFree(dummy1);
@@ -1270,17 +1390,17 @@ public class VulkanEngine {
             vkAllocateDescriptorSets(_device, objectSetAlloc, _frames[i].objectDescriptor);
 
             final VkDescriptorBufferInfo.Buffer cameraInfo = VkDescriptorBufferInfo.create(1);
-            cameraInfo.buffer ( _frames[i].cameraBuffer._buffer);
+            cameraInfo.buffer ( _frames[i].cameraBuffer._buffer[0]);
             cameraInfo.offset ( 0);
             cameraInfo.range ( GPUCameraData.sizeof());
 
             final VkDescriptorBufferInfo.Buffer sceneInfo = VkDescriptorBufferInfo.create(1);
-            sceneInfo.buffer ( _sceneParameterBuffer._buffer);
+            sceneInfo.buffer ( _sceneParameterBuffer._buffer[0]);
             sceneInfo.offset ( 0);
             sceneInfo.range ( GPUSceneData.sizeof());
 
             final VkDescriptorBufferInfo.Buffer objectBufferInfo = VkDescriptorBufferInfo.create(1);
-            objectBufferInfo.buffer ( _frames[i].objectBuffer._buffer);
+            objectBufferInfo.buffer ( _frames[i].objectBuffer._buffer[0]);
             objectBufferInfo.offset ( 0);
             objectBufferInfo.range ( GPUObjectData.sizeof() * MAX_OBJECTS);
 
@@ -1302,7 +1422,7 @@ public class VulkanEngine {
 
         _mainDeletionQueue.push_function(() -> {
 
-        vmaDestroyBuffer(_allocator, _sceneParameterBuffer._buffer, _sceneParameterBuffer._allocation);
+        vmaDestroyBuffer(_allocator, _sceneParameterBuffer._buffer[0], _sceneParameterBuffer._allocation);
 
         vkDestroyDescriptorSetLayout(_device, _objectSetLayout[0], null);
         vkDestroyDescriptorSetLayout(_device, _globalSetLayout[0], null);
@@ -1312,9 +1432,9 @@ public class VulkanEngine {
 
         for (int i = 0; i < FRAME_OVERLAP; i++)
         {
-            vmaDestroyBuffer(_allocator, _frames[i].cameraBuffer._buffer, _frames[i].cameraBuffer._allocation);
+            vmaDestroyBuffer(_allocator, _frames[i].cameraBuffer._buffer[0], _frames[i].cameraBuffer._allocation);
 
-            vmaDestroyBuffer(_allocator, _frames[i].objectBuffer._buffer, _frames[i].objectBuffer._allocation);
+            vmaDestroyBuffer(_allocator, _frames[i].objectBuffer._buffer[0], _frames[i].objectBuffer._allocation);
         }
     });
     }

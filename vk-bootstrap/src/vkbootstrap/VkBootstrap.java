@@ -248,6 +248,9 @@ public class VkBootstrap {
         }
     }
 
+    public static void destroy_debug_utils_messenger(VkInstance instance, /*VkDebugUtilsMessengerEXT*/long debugMessenger) {
+        destroy_debug_utils_messenger(instance,debugMessenger,null);
+    }
     /*295*/ public static void destroy_debug_utils_messenger(
             VkInstance instance, /*VkDebugUtilsMessengerEXT*/long debugMessenger, VkAllocationCallbacks allocation_callbacks) {
 

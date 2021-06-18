@@ -119,7 +119,7 @@ public class VkUtil {
         copyRegion.imageExtent ( imageExtent);
 
         //copy the buffer into the image
-        vkCmdCopyBufferToImage(cmd, stagingBuffer._buffer, newImage._image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, /*1,*/ copyRegion);
+        vkCmdCopyBufferToImage(cmd, stagingBuffer._buffer[0], newImage._image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, /*1,*/ copyRegion);
 
         VkImageMemoryBarrier.Buffer imageBarrier_toReadable = VkImageMemoryBarrier.create(1);imageBarrier_toReadable.put(0, imageBarrier_toTransfer.get(0));
 
@@ -139,7 +139,7 @@ public class VkUtil {
         vmaDestroyImage(engine._allocator, newImage._image, newImage._allocation);
     });
 
-        vmaDestroyBuffer(engine._allocator, stagingBuffer._buffer, stagingBuffer._allocation);
+        vmaDestroyBuffer(engine._allocator, stagingBuffer._buffer[0], stagingBuffer._allocation);
 
         System.out.println( "Texture loaded succesfully " + file );
 
