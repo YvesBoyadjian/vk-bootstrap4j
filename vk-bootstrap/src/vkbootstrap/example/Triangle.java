@@ -595,7 +595,7 @@ public class Triangle {
 
         destroy_swapchain (init.swapchain);
         destroy_device (init.device);
-        init.arrow_operator().vkDestroySurfaceKHR.invoke (init.instance.instance[0], init.surface, null);
+        destroy_surface(init.instance, init.surface);
         destroy_instance (init.instance);
         destroy_window_glfw (init.window);
     }

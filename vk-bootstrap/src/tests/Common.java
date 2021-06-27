@@ -1,6 +1,7 @@
 package tests;
 
 import org.lwjgl.PointerBuffer;
+import org.lwjgl.vulkan.VkAllocationCallbacks;
 import org.lwjgl.vulkan.VkInstance;
 
 import static org.lwjgl.glfw.GLFW.*;
@@ -31,9 +32,12 @@ public class Common {
         glfwTerminate();
     }
 
-    /*34*/ public static /*VkSurfaceKHR*/long create_surface_glfw(VkInstance instance, /*GLFWwindow*/long window) {
+    public static long create_surface_glfw(VkInstance instance, /*GLFWwindow*/long window) {
+        return create_surface_glfw(instance,window,null);
+    }
+    /*34*/ public static /*VkSurfaceKHR*/long create_surface_glfw(VkInstance instance, /*GLFWwindow*/long window, VkAllocationCallbacks allocator) {
         /*VkSurfaceKHR*/final long[] surface = new long[1];//VK_NULL_HANDLE;
-        /*VkResult*/int err = glfwCreateWindowSurface(instance, window, null, surface);
+        /*VkResult*/int err = glfwCreateWindowSurface(instance, window, allocator, surface);
         if (err != 0) {
 		    final PointerBuffer error_msg = PointerBuffer.allocateDirect(999);
             int ret = glfwGetError(error_msg);

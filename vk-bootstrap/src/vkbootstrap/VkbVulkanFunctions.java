@@ -6,6 +6,7 @@ import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.system.NativeType;
 import org.lwjgl.vulkan.*;
+import tests.VulkanLibrary;
 
 import java.nio.ByteBuffer;
 
@@ -165,6 +166,7 @@ public class VkbVulkanFunctions {
     /*150*/ PFN_vkCreateImageView fp_vkCreateImageView = null;
     /*151*/ PFN_vkDestroyImageView fp_vkDestroyImageView = null;
 
+    VulkanLibrary.PFN_vkDestroySurfaceKHR fp_vkDestroySurfaceKHR = null;
     /*154*/ PFN_vkGetPhysicalDeviceSurfaceSupportKHR fp_vkGetPhysicalDeviceSurfaceSupportKHR = null;
     /*155*/ PFN_vkGetPhysicalDeviceSurfaceFormatsKHR fp_vkGetPhysicalDeviceSurfaceFormatsKHR = null;
     /*156*/ PFN_vkGetPhysicalDeviceSurfacePresentModesKHR fp_vkGetPhysicalDeviceSurfacePresentModesKHR = null;
@@ -336,6 +338,14 @@ public class VkbVulkanFunctions {
             @Override
             public void invoke(VkDevice device, long imageView, VkAllocationCallbacks pAllocator) {
                 VK10.vkDestroyImageView(device,imageView,pAllocator);
+            }
+        };
+
+        /*188*/ //get_inst_proc_addr(fp_vkDestroySurfaceKHR, "vkDestroySurfaceKHR");
+        fp_vkDestroySurfaceKHR = new VulkanLibrary.PFN_vkDestroySurfaceKHR() {
+            @Override
+            public void invoke(VkInstance instance, long surface, VkAllocationCallbacks pAllocator) {
+                KHRSurface.vkDestroySurfaceKHR(instance,surface,pAllocator);
             }
         };
 

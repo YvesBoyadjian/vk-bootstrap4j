@@ -391,6 +391,19 @@ public class VkBootstrap {
     // Sentinel value, used in implementation only
     public static final int QUEUE_INDEX_MAX_VALUE = 65536;
 
+    /*535*/ public static void destroy_surface(VkbInstance instance, /*VkSurfaceKHR*/long surface) {
+        if (instance.instance[0] != /*VK_NULL_HANDLE*/null && surface != VK_NULL_HANDLE) {
+            vulkan_functions().fp_vkDestroySurfaceKHR.invoke(instance.instance[0], surface, instance.allocation_callbacks);
+        }
+    }
+    public static void destroy_surface(VkInstance instance,long surface) {
+        destroy_surface(instance,surface,null);
+    }
+    /*540*/ public static void destroy_surface(VkInstance instance, /*VkSurfaceKHR*/long surface, VkAllocationCallbacks callbacks) {
+        if (instance != /*VK_NULL_HANDLE*/null && surface != VK_NULL_HANDLE) {
+            vulkan_functions().fp_vkDestroySurfaceKHR.invoke(instance, surface, callbacks);
+        }
+    }
     /*560*/ public static void destroy_instance(VkbInstance instance) {
         if (instance.instance[0] != /*VK_NULL_HANDLE*/null) {
             if (instance.debug_messenger[0] != VK_NULL_HANDLE)
