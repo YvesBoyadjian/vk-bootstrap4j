@@ -258,7 +258,7 @@ public class VkbPhysicalDeviceSelector {
             }
         }
 
-        if (selected_device.phys_device.address() == VK_NULL_HANDLE) {
+        if (selected_device.phys_device == null || selected_device.phys_device.address() == VK_NULL_HANDLE) {
             return new Result<VkbPhysicalDevice>(new error_code( VkbPhysicalDeviceError.no_suitable_device.ordinal() ));
         }
         final VkbPhysicalDevice out_device = new VkbPhysicalDevice();
