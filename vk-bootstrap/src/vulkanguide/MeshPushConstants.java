@@ -18,6 +18,8 @@ public class MeshPushConstants {
     public FloatBuffer toFloatBuffer() {
         FloatBuffer fb = memAllocFloat(sizeof()/Float.BYTES);
         data.get(fb);
+        fb.position(4);
+        render_matrix.get(fb);
         return fb;
     }
 }
