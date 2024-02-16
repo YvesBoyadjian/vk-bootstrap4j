@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/vk-bootstrap/vk-bootstrap.iml" filepath="$PROJECT_DIR$/vk-bootstrap/vk-bootstrap.iml" />
+      <module fileurl="file://$PROJECT_DIR$/vk-bootstrap/maventest.iml" filepath="$PROJECT_DIR$/vk-bootstrap/maventest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/vk-bootstrap4j.iml" filepath="$PROJECT_DIR$/.idea/vk-bootstrap4j.iml" />
     </modules>
   </component>
 </project>

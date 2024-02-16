@@ -45,6 +45,15 @@ public class VkbGenericFeaturesPNextNode extends Struct implements NativeResourc
         super(memAddress(container), __checkContainer(container, SIZEOF));
     }
 
+    protected VkbGenericFeaturesPNextNode(long address, ByteBuffer container) {
+        super(address, container);
+    }
+
+    @Override
+    protected VkbGenericFeaturesPNextNode create(long address, ByteBuffer container) {
+        return new VkbGenericFeaturesPNextNode(address, container);
+    }
+
     @Override
     public int sizeof() {
         return SIZEOF;
