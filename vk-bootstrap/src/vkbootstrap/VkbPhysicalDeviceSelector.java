@@ -1,5 +1,6 @@
 package vkbootstrap;
 
+import org.lwjgl.system.Struct;
 import org.lwjgl.vulkan.*;
 import port.error_code;
 
@@ -9,6 +10,8 @@ import java.util.List;
 import static org.lwjgl.vulkan.VK10.*;
 import static org.lwjgl.vulkan.VK11.VK_API_VERSION_1_1;
 import static org.lwjgl.vulkan.VK11.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+import static org.lwjgl.vulkan.VK12.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+import static org.lwjgl.vulkan.VK12.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
 import static vkbootstrap.VkBootstrap.*;
 
 public class VkbPhysicalDeviceSelector {
@@ -280,6 +283,33 @@ public class VkbPhysicalDeviceSelector {
     }
     /*1212*/ public VkbPhysicalDeviceSelector set_minimum_version (int major, int minor) {
         criteria.required_version = VK_MAKE_VERSION (major, minor, 0);
+        return this;
+    }
+
+    // Require a physical device which supports the features in VkPhysicalDeviceFeatures.
+//#if defined(VKB_VK_API_VERSION_1_2)
+// Just calls add_required_features
+// Require a physical device which supports the features in VkPhysicalDeviceVulkan11Features.
+// Must have vulkan version 1.2 - This is due to the VkPhysicalDeviceVulkan11Features struct being added in 1.2, not 1.1
+    public VkbPhysicalDeviceSelector set_required_features_11(VkPhysicalDeviceVulkan11Features features_11) {
+        features_11.sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES);
+        add_required_extension_features(features_11);
+        return this;
+    }
+    // Require a physical device which supports the features in VkPhysicalDeviceVulkan12Features.
+    // Must have vulkan version 1.2
+    public VkbPhysicalDeviceSelector set_required_features_12(VkPhysicalDeviceVulkan12Features features_12) {
+        features_12.sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES);
+        add_required_extension_features(features_12);
+        return this;
+    }
+//#endif
+
+    // Require a physical device which supports a specific set of general/extension features.
+    // If this function is used, the user should not put their own VkPhysicalDeviceFeatures2 in
+    // the pNext chain of VkDeviceCreateInfo.
+    public VkbPhysicalDeviceSelector add_required_extension_features(Struct features) {
+        criteria.extended_features_chain.add(VkbGenericFeaturesPNextNode.from(features));
         return this;
     }
 }

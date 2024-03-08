@@ -347,7 +347,7 @@ public class VulkanEngine {
         var inst_ret = builder.set_app_name("Example Vulkan Application")
                 .request_validation_layers(bUseValidationLayers)
                 .use_default_debug_messenger()
-                .require_api_version(1, 1, 0)
+                .require_api_version(1, 2, 0)
                 .build();
 
         VkbInstance vkb_inst = inst_ret.value();
@@ -363,7 +363,8 @@ public class VulkanEngine {
         //We want a gpu that can write to the SDL surface and supports vulkan 1.2
         final VkbPhysicalDeviceSelector selector = new VkbPhysicalDeviceSelector( vkb_inst );
         final VkbPhysicalDevice physicalDevice = selector
-            .set_minimum_version(1, 1)
+            .set_minimum_version(1, 2)
+            .set_required_features_11(VkPhysicalDeviceVulkan11Features.create())
             .set_surface(_surface[0])
             .select()
             .value();
