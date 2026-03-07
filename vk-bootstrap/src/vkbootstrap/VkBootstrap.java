@@ -101,7 +101,7 @@ public class VkBootstrap {
     /*218*/ public static <T extends VkExtensionProperties, F extends VkbVulkanFunctions.PFN_vkEnumerateInstanceExtensionProperties> int get_vector(final List<T> out, F f, ByteBuffer o) {
         final int[] count = new int[1];
         /*VkResult*/int err;
-        do {
+//        do {
             err = f.invoke( o, count, null);
             if (err != 0) {
                 return err;
@@ -116,16 +116,16 @@ public class VkBootstrap {
                 }
             }
 
-        } while (err == VK_INCOMPLETE);
+//        } while (err == VK_INCOMPLETE); it will never be incomplete
         return err;
     }
 
     /*218*/ public static <T extends VkLayerProperties, F extends VkbVulkanFunctions.PFN_vkEnumerateInstanceLayerProperties> int get_vector(final List<T> out, F f) {
         final int[] count = new int[1];
         /*VkResult*/int err;
-        do {
+//        do {
             err = f.invoke( count, null);
-            if (err != 0) {
+            if (err != VK_SUCCESS) {
                 return err;
             };
             //out.resize(count);
@@ -138,7 +138,7 @@ public class VkBootstrap {
                 }
             }
 
-        } while (err == VK_INCOMPLETE);
+//        } while (err == VK_INCOMPLETE); it will never be incomplete
         return err;
     }
 
@@ -222,6 +222,7 @@ public class VkBootstrap {
                                           VkDebugUtilsMessengerCallbackEXT debug_callback,
                                           /*VkDebugUtilsMessageSeverityFlagsEXT*/int severity,
                                           /*VkDebugUtilsMessageTypeFlagsEXT*/int type,
+                                          long user_data_pointer,
                                           /*VkDebugUtilsMessengerEXT*/final long[] pDebugMessenger,
                                           VkAllocationCallbacks allocation_callbacks) {
 
@@ -232,6 +233,7 @@ public class VkBootstrap {
         messengerCreateInfo.messageSeverity( severity);
         messengerCreateInfo.messageType( type);
         messengerCreateInfo.pfnUserCallback( debug_callback);
+        messengerCreateInfo.pUserData(user_data_pointer);
 
         VkbVulkanFunctions.PFN_vkCreateDebugUtilsMessengerEXT createMessengerFunc;
         //vulkan_functions().get_inst_proc_addr(createMessengerFunc, "vkCreateDebugUtilsMessengerEXT");
@@ -294,14 +296,14 @@ public class VkBootstrap {
         return false;
     }
 
-    /*328*/ public static boolean check_layers_supported(List<VkLayerProperties> available_layers,
+    /*328*/ public static List<String>  check_layers_supported(List<VkLayerProperties> available_layers,
                                 List<String> layer_names) {
-        boolean all_found = true;
+        final List<String> not_found = new ArrayList<>();
         for (var layer_name : layer_names) {
             boolean found = check_layer_supported(available_layers, layer_name);
-            if (!found) all_found = false;
+            if (!found) not_found.add(layer_name);
         }
-        return all_found;
+        return not_found;
     }
 
     /*338*/ public static boolean check_extension_supported(
@@ -315,14 +317,14 @@ public class VkBootstrap {
         return false;
     }
 
-    /*349*/ public static boolean check_extensions_supported(final List<VkExtensionProperties> available_extensions,
+    /*349*/ public static List<String> check_extensions_supported(final List<VkExtensionProperties> available_extensions,
                                     final List<String> extension_names) {
-        boolean all_found = true;
+        final List<String> not_found = new ArrayList<>();
         for (var extension_name : extension_names) {
             boolean found = check_extension_supported(available_extensions, extension_name);
-            if (!found) all_found = false;
+            if (!found) not_found.add(extension_name);
         }
-        return all_found;
+        return not_found;
     }
 
     //template <typename T>

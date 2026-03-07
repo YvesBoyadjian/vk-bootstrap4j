@@ -26,7 +26,7 @@ import static vkbootstrap.VkBootstrap.*;
 
 public class Triangle {
 
-    static final String EXAMPLE_BUILD_DIRECTORY = "vk-bootstrap/src/vkbootstrap/example/shaders";
+    static final String EXAMPLE_BUILD_DIRECTORY = /*"vk-bootstrap/*/"src/vkbootstrap/example/shaders";
 
     static final int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -67,13 +67,15 @@ public class Triangle {
             System.out.println( instance_ret.error ().message () );
             return -1;
         }
-        init.instance = instance_ret.value ();
+        init.instance.copyFrom(instance_ret.value ());
+
+        init.inst_disp.copyFrom(init.instance.make_table());
 
         init.vk_lib.init(init.instance.instance[0]);
 
         init.surface = Common.create_surface_glfw (init.instance.instance[0], init.window);
 
-        final VkbPhysicalDeviceSelector phys_device_selector = new VkbPhysicalDeviceSelector(init.instance);
+        final VkbPhysicalDeviceSelector phys_device_selector = new VkbPhysicalDeviceSelector(init.instance, 0);
         var phys_device_ret = phys_device_selector.set_surface (init.surface).select ();
         if (phys_device_ret.not()) {
             System.out.println( phys_device_ret.error ().message () );
@@ -87,7 +89,7 @@ public class Triangle {
             System.out.println(device_ret.error ().message ());
             return -1;
         }
-        init.device = device_ret.value ();
+        init.device.copyFrom(device_ret.value ());
         init.vk_lib.init(init.device.device[0]);
 
         return 0;
@@ -102,7 +104,7 @@ public class Triangle {
             return -1;
         }
         destroy_swapchain(init.swapchain);
-        init.swapchain = swap_ret.value ();
+        init.swapchain.copyFrom(swap_ret.value ());
         return 0;
     }
 

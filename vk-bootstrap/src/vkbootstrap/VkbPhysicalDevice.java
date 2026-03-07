@@ -21,4 +21,23 @@ public class VkbPhysicalDevice {
     /*372*/ final List<VkQueueFamilyProperties> queue_families = new ArrayList<>();
     public final List<VkbGenericFeaturesPNextNode> extended_features_chain = new ArrayList<>();
     public boolean defer_surface_initialization = false;
+    
+    /**
+     * Copy operator
+     * @param other
+     */
+	public void copyFrom(VkbPhysicalDevice other) {
+		physical_device = other.physical_device;
+		surface = other.surface;
+		
+		features.set(other.features);
+		properties = other.properties;
+		memory_properties = other.memory_properties;
+		
+		instance_version = other.instance_version;
+		extensions_to_enable.clear(); extensions_to_enable.addAll(other.extensions_to_enable);
+		queue_families.clear(); queue_families.addAll(other.queue_families);
+		extended_features_chain.clear(); extended_features_chain.addAll(other.extended_features_chain);
+		defer_surface_initialization = other.defer_surface_initialization;
+	}
 }

@@ -14,7 +14,7 @@ public class VkbSwapchain {
     public /*VkSwapchainKHR*/final long[] swapchain = new long[1];//VK_NULL_HANDLE;
     public int image_count = 0;
     public /*VkFormat*/int image_format = VK_FORMAT_UNDEFINED;
-    public VkExtent2D extent = VkExtent2D.create();
+    public final VkExtent2D extent = VkExtent2D.create();
     VkAllocationCallbacks allocation_callbacks = null;//VK_NULL_HANDLE;
 
     /*1741*/
@@ -68,4 +68,18 @@ public class VkbSwapchain {
             vulkan_functions().fp_vkDestroyImageView.invoke(device, image_view, allocation_callbacks);
         }
     }
+
+    /**
+     * Copy operator
+     * @param value
+     */
+	public void copyFrom(VkbSwapchain other) {
+		device = other.device;
+		swapchain[0] = other.swapchain[0];
+		image_count = other.image_count;
+		image_format = other.image_format;
+		extent.width(other.extent.width());
+		extent.height(other.extent.height());
+		allocation_callbacks = other.allocation_callbacks;
+	}
 }

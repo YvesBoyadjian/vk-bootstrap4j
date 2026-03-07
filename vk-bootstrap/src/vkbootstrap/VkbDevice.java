@@ -14,7 +14,7 @@ import static vkbootstrap.VkBootstrap.*;
 
 public class VkbDevice {
     public final VkDevice[] device = new VkDevice[1];//VK_NULL_HANDLE;
-    public VkbPhysicalDevice physical_device;
+    public final VkbPhysicalDevice physical_device = new VkbPhysicalDevice();
     public /*VkSurfaceKHR*/long surface = VK_NULL_HANDLE;
     public final List<VkQueueFamilyProperties> queue_families = new ArrayList<>();
     public final VkAllocationCallbacks[] allocation_callbacks = new VkAllocationCallbacks[1];//VK_NULL_HANDLE;
@@ -53,4 +53,16 @@ public class VkbDevice {
         if (!index.has_value()) return new Result(index.error());
         return new Result(VkBootstrap.get_queue(device[0], index.value()));
     }
+
+    /**
+     * Copy operator
+     * @param other
+     */
+	public void copyFrom(VkbDevice other) {
+		device[0] = other.device[0];
+		physical_device.copyFrom(other.physical_device);
+		surface = other.surface;
+		queue_families.clear(); queue_families.addAll(other.queue_families);
+		allocation_callbacks[0] = other.allocation_callbacks[0];
+	}
 }

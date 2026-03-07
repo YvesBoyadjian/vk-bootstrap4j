@@ -1,0 +1,6 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-ClassPath: src/
+Bundle-Name: vk-bootstrap
+Bundle-SymbolicName: vk-bootstrap
+Bundle-Version: 1.0.0.qualifier

@@ -148,7 +148,7 @@ public class VkbSwapchainBuilder {
         }
         swapchain.device = info.device;
         swapchain.image_format = surface_format.format();
-        swapchain.extent = extent;
+        swapchain.extent.set(extent);
         var images = swapchain.get_images();
         if (images.not()) {
             return new Result(new Error( new error_code(VkbSwapchainError.failed_get_swapchain_images.ordinal() )));

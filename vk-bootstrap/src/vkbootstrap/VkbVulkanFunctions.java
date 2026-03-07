@@ -8,6 +8,7 @@ import org.lwjgl.system.NativeType;
 import org.lwjgl.vulkan.*;
 import tests.VulkanLibrary;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
 import static org.lwjgl.system.MemoryStack.stackPush;
@@ -16,6 +17,12 @@ import static org.lwjgl.system.MemoryUtil.memFree;
 import static org.lwjgl.vulkan.VK10.VK_SUCCESS;
 
 public class VkbVulkanFunctions {
+	
+    private boolean initialized = false;
+    
+    private boolean instance_functions_initialized = false;    
+    
+    private boolean library = false;
 
     public interface PFN_vkCreateDebugUtilsMessengerEXT {
         int invoke(VkInstance instance, VkDebugUtilsMessengerCreateInfoEXT pCreateInfo, VkAllocationCallbacks pAllocator, final long[] pMessenger);
@@ -44,7 +51,7 @@ public class VkbVulkanFunctions {
     public interface PFN_vkDestroyInstance {
         void invoke(VkInstance instance, VkAllocationCallbacks pAllocator);
     }
-
+    
     public interface PFN_vkEnumeratePhysicalDevices {
         int invoke(VkInstance instance, int[] pPhysicalDeviceCount, PointerBuffer pPhysicalDevices);
     }
@@ -56,6 +63,11 @@ public class VkbVulkanFunctions {
     public interface PFN_vkGetPhysicalDeviceFeatures2 {
         void invoke(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures2 pFeatures);
     }
+    
+    public interface PFN_vkGetPhysicalDeviceFeatures2KHR {
+        void invoke(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures2 pFeatures);
+    }
+    
     public interface PFN_vkGetPhysicalDeviceFormatProperties {
         void invoke(VkPhysicalDevice physicalDevice, int format, VkFormatProperties pFormatProperties);
     }
@@ -74,6 +86,10 @@ public class VkbVulkanFunctions {
 
     public interface PFN_vkCreateDevice {
         int invoke(VkPhysicalDevice physicalDevice, VkDeviceCreateInfo pCreateInfo, VkAllocationCallbacks pAllocator, final VkDevice[] pDevice);
+    }
+    
+    public interface PFN_vkGetDeviceProcAddr {
+    		long invoke(VkDevice device, CharSequence pName);
     }
 
     public interface PFN_vkDestroyDevice {
@@ -128,20 +144,24 @@ public class VkbVulkanFunctions {
         void invoke(VkInstance instance, long messenger, VkAllocationCallbacks pAllocator);
     }
 
-    /*100*/ boolean load_vulkan(PFN_vkGetInstanceProcAddr fp_vkGetInstanceProcAddr) {
-        if (fp_vkGetInstanceProcAddr != null) {
-            ptr_vkGetInstanceProcAddr = fp_vkGetInstanceProcAddr;
-        } else {
-            ptr_vkGetInstanceProcAddr = new PFN_vkGetInstanceProcAddr() {
-                public long invoke(VkInstance instance, CharSequence pName) {
-                    return VK10.vkGetInstanceProcAddr(instance, pName);
-                }
-            };
+    /*100*/ boolean load_vulkan_library() {
+        // Can immediately return if it has already been loaded
+        if (library) {
+            return true;
         }
+        
+        library = true;
+    	
+        ptr_vkGetInstanceProcAddr = new PFN_vkGetInstanceProcAddr() {
+            public long invoke(VkInstance instance, CharSequence pName) {
+                return VK10.vkGetInstanceProcAddr(instance, pName);
+            }
+        };
         return true;
     }
 
     /*123*/ PFN_vkGetInstanceProcAddr ptr_vkGetInstanceProcAddr = null;
+    VkInstance instance = null;
 
     /*126*/ PFN_vkEnumerateInstanceExtensionProperties fp_vkEnumerateInstanceExtensionProperties = null;
     /*127*/ PFN_vkEnumerateInstanceLayerProperties fp_vkEnumerateInstanceLayerProperties = null;
@@ -149,16 +169,20 @@ public class VkbVulkanFunctions {
     /*128*/ PFN_vkEnumerateInstanceVersion fp_vkEnumerateInstanceVersion = null;
     /*129*/ PFN_vkCreateInstance fp_vkCreateInstance = null;
     /*130*/ PFN_vkDestroyInstance fp_vkDestroyInstance = null;
+    PFN_vkCreateDebugUtilsMessengerEXT fp_vkCreateDebugUtilsMessengerEXT = null;
+    PFN_vkDestroyDebugUtilsMessengerEXT fp_vkDestroyDebugUtilsMessengerEXT = null;
 
     /*132*/ PFN_vkEnumeratePhysicalDevices fp_vkEnumeratePhysicalDevices = null;
     /*133*/ PFN_vkGetPhysicalDeviceFeatures fp_vkGetPhysicalDeviceFeatures = null;
     /*134*/ PFN_vkGetPhysicalDeviceFeatures2 fp_vkGetPhysicalDeviceFeatures2 = null;
+    PFN_vkGetPhysicalDeviceFeatures2KHR fp_vkGetPhysicalDeviceFeatures2KHR = null;
     /*135*/ PFN_vkGetPhysicalDeviceFormatProperties fp_vkGetPhysicalDeviceFormatProperties = null;
     /*137*/ PFN_vkGetPhysicalDeviceProperties fp_vkGetPhysicalDeviceProperties = null;
     /*139*/ PFN_vkGetPhysicalDeviceQueueFamilyProperties fp_vkGetPhysicalDeviceQueueFamilyProperties = null;
     /*141*/ PFN_vkGetPhysicalDeviceMemoryProperties fp_vkGetPhysicalDeviceMemoryProperties = null;
 
     /*145*/ PFN_vkCreateDevice fp_vkCreateDevice = null;
+    PFN_vkGetDeviceProcAddr fp_vkGetDeviceProcAddr = null;
     /*146*/ PFN_vkDestroyDevice fp_vkDestroyDevice = null;
     /*147*/ PFN_vkEnumerateDeviceExtensionProperties fp_vkEnumerateDeviceExtensionProperties = null;
     /*148*/ PFN_vkGetDeviceQueue fp_vkGetDeviceQueue = null;
@@ -218,11 +242,39 @@ public class VkbVulkanFunctions {
 
     /*162*/ public boolean init_vulkan_funcs(PFN_vkGetInstanceProcAddr fp_vkGetInstanceProcAddr) {
 //        std::lock_guard<std::mutex> lg(init_mutex);
-        if (!load_vulkan(fp_vkGetInstanceProcAddr)) return false;
+        if (initialized) {
+            return true;
+        }
+        
+        if (fp_vkGetInstanceProcAddr != null) {
+            ptr_vkGetInstanceProcAddr = fp_vkGetInstanceProcAddr;
+        } else {
+        		boolean ret = load_vulkan_library();
+        		if (!ret) return false;
+        }
+        
+//        fp_vkEnumerateInstanceExtensionProperties = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>( called in init_pre_instance_funcs()
+//                ptr_vkGetInstanceProcAddr(VK_NULL_HANDLE, "vkEnumerateInstanceExtensionProperties"));
+        
+//            fp_vkEnumerateInstanceLayerProperties = reinterpret_cast<PFN_vkEnumerateInstanceLayerProperties>( called in init_pre_instance_funcs()
+//                ptr_vkGetInstanceProcAddr(VK_NULL_HANDLE, "vkEnumerateInstanceLayerProperties"));
+            
+//            fp_vkEnumerateInstanceVersion = reinterpret_cast<PFN_vkEnumerateInstanceVersion>( called in init_pre_instance_funcs()
+//                ptr_vkGetInstanceProcAddr(VK_NULL_HANDLE, "vkEnumerateInstanceVersion"));
+            
+//            fp_vkCreateInstance =
+//                reinterpret_cast<PFN_vkCreateInstance>(ptr_vkGetInstanceProcAddr(VK_NULL_HANDLE, "vkCreateInstance")); called in init_pre_instance_funcs()
+                
+            initialized = true;
+                
         init_pre_instance_funcs();
         return true;
     }
     /*174*/ void init_instance_funcs(VkInstance inst) {
+    	
+        if (instance_functions_initialized) return;
+        instance = inst;    	
+    	
         /*178*/ //get_proc_addr(fp_vkDestroyInstance, "vkDestroyInstance");
         fp_vkDestroyInstance = new PFN_vkDestroyInstance() {
             @Override
@@ -230,6 +282,28 @@ public class VkbVulkanFunctions {
                 VK10.vkDestroyInstance(instance,pAllocator);
             }
         };
+        
+        //get_inst_proc_addr(fp_vkCreateDebugUtilsMessengerEXT, "vkCreateDebugUtilsMessengerEXT");
+        fp_vkCreateDebugUtilsMessengerEXT = new PFN_vkCreateDebugUtilsMessengerEXT() {
+
+			@Override
+			public int invoke(VkInstance instance, VkDebugUtilsMessengerCreateInfoEXT pCreateInfo,
+					VkAllocationCallbacks pAllocator, long[] pMessenger) {
+				return EXTDebugUtils.vkCreateDebugUtilsMessengerEXT(instance, pCreateInfo, pAllocator, pMessenger);
+			}
+        		
+        };
+        
+        //get_inst_proc_addr(fp_vkDestroyDebugUtilsMessengerEXT, "vkDestroyDebugUtilsMessengerEXT");
+        fp_vkDestroyDebugUtilsMessengerEXT = new PFN_vkDestroyDebugUtilsMessengerEXT() {
+
+			@Override
+			public void invoke(VkInstance instance, long messenger, VkAllocationCallbacks pAllocator) {
+				EXTDebugUtils.vkDestroyDebugUtilsMessengerEXT(instance, messenger, pAllocator);
+			}
+        	
+        };
+        
         /*179*/ //get_proc_addr(fp_vkEnumeratePhysicalDevices, "vkEnumeratePhysicalDevices");
         fp_vkEnumeratePhysicalDevices = new PFN_vkEnumeratePhysicalDevices() {
             @Override
@@ -254,6 +328,15 @@ public class VkbVulkanFunctions {
             }
         };
 
+        //get_inst_proc_addr(fp_vkGetPhysicalDeviceFeatures2KHR, "vkGetPhysicalDeviceFeatures2KHR");
+        fp_vkGetPhysicalDeviceFeatures2KHR = new PFN_vkGetPhysicalDeviceFeatures2KHR() {
+			@Override
+			public void invoke(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures2 pFeatures) {
+				VK11.vkGetPhysicalDeviceFeatures2(physicalDevice, pFeatures);
+			}        	
+        };
+        
+        
         /*182*/ //get_proc_addr(fp_vkGetPhysicalDeviceFormatProperties, "vkGetPhysicalDeviceFormatProperties");
         fp_vkGetPhysicalDeviceFormatProperties = new PFN_vkGetPhysicalDeviceFormatProperties() {
             @Override
@@ -299,6 +382,18 @@ public class VkbVulkanFunctions {
                 return ret_val;
             }
         };
+        
+        //get_inst_proc_addr(fp_vkGetDeviceProcAddr, "vkGetDeviceProcAddr");
+        fp_vkGetDeviceProcAddr = new PFN_vkGetDeviceProcAddr() {
+
+			@Override
+			public long invoke(VkDevice device, CharSequence pName) {
+				return VK10.vkGetDeviceProcAddr(device, pName);
+			}
+        	
+        };
+        
+        
         /*193*/ //get_proc_addr(fp_vkDestroyDevice, "vkDestroyDevice");
         fp_vkDestroyDevice = new PFN_vkDestroyDevice() {
             @Override
@@ -403,5 +498,6 @@ public class VkbVulkanFunctions {
                 return KHRSwapchain.vkGetSwapchainImagesKHR(device,swapchain,pSwapchainImageCount,pSwapchainImages);
             }
         };
+        instance_functions_initialized = true;
     }
 }

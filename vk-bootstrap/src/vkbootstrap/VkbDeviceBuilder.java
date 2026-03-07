@@ -119,7 +119,7 @@ public class VkbDeviceBuilder {
             return new Result( new error_code(VkbDeviceError.failed_create_device.ordinal()), res );
         }
 
-        device.physical_device = physical_device;
+        device.physical_device.copyFrom(physical_device);
         device.surface = physical_device.surface;
         device.queue_families.clear(); device.queue_families.addAll(physical_device.queue_families);
         device.allocation_callbacks[0] = info.allocation_callbacks;

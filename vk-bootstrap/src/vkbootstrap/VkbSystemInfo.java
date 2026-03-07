@@ -3,6 +3,8 @@ package vkbootstrap;
 import org.lwjgl.vulkan.VkExtensionProperties;
 import org.lwjgl.vulkan.VkLayerProperties;
 
+import vkbootstrap.VkbVulkanFunctions.PFN_vkEnumerateInstanceVersion;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -22,6 +24,8 @@ public class VkbSystemInfo {
     public boolean validation_layers_available = false;
     public boolean debug_utils_available = false;
 
+    final int[] instance_api_version = new int[1];// Version.VKB_MAKE_VK_VERSION(0, 1, 0, 0);//VKB_VK_API_VERSION_1_0;
+
     // Use get_system_info to create a SystemInfo struct. This is because loading vulkan could fail.
     /*505*/ public static Result<VkbSystemInfo> get_system_info() {
 
@@ -38,6 +42,9 @@ public class VkbSystemInfo {
     }
 
     /*518*/ public VkbSystemInfo() {
+    	
+    	instance_api_version[0] = Version.VKB_MAKE_VK_VERSION(0, 1, 0, 0);//VKB_VK_API_VERSION_1_0;
+    	
         var available_layers_ret = VkBootstrap.get_vector/*<VkLayerProperties>*/(
                 this.available_layers, vulkan_functions().fp_vkEnumerateInstanceLayerProperties);
         if (available_layers_ret != VK_SUCCESS) {
@@ -64,10 +71,23 @@ public class VkbSystemInfo {
             vulkan_functions().fp_vkEnumerateInstanceExtensionProperties,
                     layer.layerName());
             if (layer_extensions_ret == VK_SUCCESS) {
-                for (var ext : layer_extensions)
-                if (Objects.equals(ext.extensionNameString(), VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
-                    debug_utils_available = true;
+                for (var ext : layer_extensions) {
+	                if (Objects.equals(ext.extensionNameString(), VK_EXT_DEBUG_UTILS_EXTENSION_NAME)) {
+	                    debug_utils_available = true;
+	                }
+                }
             }
         }
+        
+
+        PFN_vkEnumerateInstanceVersion pfn_vkEnumerateInstanceVersion = vulkan_functions().fp_vkEnumerateInstanceVersion;
+
+        if (pfn_vkEnumerateInstanceVersion != null) {
+            /*VkResult*/int res = pfn_vkEnumerateInstanceVersion.invoke(instance_api_version);
+            if (res != VK_SUCCESS) {
+                instance_api_version[0] = Version.VKB_MAKE_VK_VERSION(0, 1, 0, 0);//VKB_VK_API_VERSION_1_0;
+            }
+        }
+        
     }
 }

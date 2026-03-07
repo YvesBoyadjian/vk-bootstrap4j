@@ -4,6 +4,8 @@ import port.error_code;
 
 import static org.lwjgl.vulkan.VK10.VK_SUCCESS;
 
+import java.util.List;
+
 public class Result<T extends Object> {
 
     private T m_value;
@@ -21,6 +23,10 @@ public class Result<T extends Object> {
     public Result(error_code error_code, /*VkResult*/int result) {
 	    m_error = new Error(error_code,result);
         m_init = false;
+    }
+
+    public Result(error_code error_code, List<String> detailed_failure_reasons) {
+    		m_error = new Error(error_code, VK_SUCCESS, detailed_failure_reasons);
     }
 
     public T        value ()          { assert (m_init); return m_value; }

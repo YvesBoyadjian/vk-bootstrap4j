@@ -21,6 +21,7 @@ public class VkbPhysicalDeviceSelector {
         /*VkSurfaceKHR*/long surface = VK_NULL_HANDLE;
         public int version = VK_MAKE_VERSION(1, 0, 0);
         public boolean headless = false;
+        public boolean properties2_ext_enabled = false;
     }
 
     private class PhysicalDeviceDesc {
@@ -206,9 +207,14 @@ public class VkbPhysicalDeviceSelector {
 
     // Requires a vkb::Instance to construct, needed to pass instance creation info.
     /*1118*/public VkbPhysicalDeviceSelector(VkbInstance instance) {
+    		this(instance, 0);
+    }
+    /*1118*/public VkbPhysicalDeviceSelector(VkbInstance instance, /*VkSurfaceKHR*/long surface) {
         instance_info.instance = instance.instance[0];
-        instance_info.headless = instance.headless;
+        //instance_info.headless = instance.headless; dont copy headless
         instance_info.version = instance.instance_version;
+        instance_info.properties2_ext_enabled = instance.properties2_ext_enabled;
+        instance_info.surface = surface;
         criteria.require_present = !instance.headless;
         criteria.required_version = instance.instance_version;
         criteria.desired_version = instance.instance_version;
@@ -216,7 +222,7 @@ public class VkbPhysicalDeviceSelector {
 
     /*1193*/ public VkbPhysicalDeviceSelector set_surface(/*VkSurfaceKHR*/long surface) {
         instance_info.surface = surface;
-        instance_info.headless = false;
+        //instance_info.headless = false; dont
         return this;
     }
 
