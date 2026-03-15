@@ -54,4 +54,9 @@ public class error_code {
     public error_category category() {
         return _Mycat;
     }
+
+	public void copyFrom(error_code other) {
+		_Myval = other._Myval;
+		_Mycat = other._Mycat;		
+	}
 }

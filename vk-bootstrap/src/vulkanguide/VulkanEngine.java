@@ -363,8 +363,8 @@ public class VulkanEngine {
         //We want a gpu that can write to the SDL surface and supports vulkan 1.2
         final VkbPhysicalDeviceSelector selector = new VkbPhysicalDeviceSelector( vkb_inst );
         final VkbPhysicalDevice physicalDevice = selector
-            .set_minimum_version(1, 2)
-            .set_required_features_11(VkPhysicalDeviceVulkan11Features.create())
+            .set_minimum_version(1, 2)            
+//           .set_required_features_11(VkPhysicalDeviceVulkan11Features.create().set(0, 0, false, false, false, false, false, false, false, false, false, false, false, true))
             .set_surface(_surface[0])
             .select()
             .value();
@@ -663,7 +663,10 @@ public class VulkanEngine {
         {
             if (!load_shader_module("vk-bootstrap/src/vulkanguide/shaders/default_lit.frag.spv", colorMeshShader))
             {
+                if (!load_shader_module("src/vulkanguide/shaders/default_lit.frag.spv", colorMeshShader))
+                {
                 System.out.println("Error when building the colored mesh shader");
+                }
             }
         }
 
@@ -671,7 +674,9 @@ public class VulkanEngine {
         if (!load_shader_module("../../shaders/textured_lit.frag.spv", texturedMeshShader))
         {
             if (!load_shader_module("vk-bootstrap/src/vulkanguide/shaders/textured_lit.frag.spv", texturedMeshShader)) {
+                if (!load_shader_module("src/vulkanguide/shaders/textured_lit.frag.spv", texturedMeshShader)) {
                 System.out.println("Error when building the colored mesh shader");
+                }
             }
         }
 
@@ -679,7 +684,9 @@ public class VulkanEngine {
         if (!load_shader_module("../../shaders/tri_mesh_ssbo.vert.spv", meshVertShader))
         {
             if (!load_shader_module("vk-bootstrap/src/vulkanguide/shaders/tri_mesh_ssbo.vert.spv", meshVertShader)) {
+                if (!load_shader_module("src/vulkanguide/shaders/tri_mesh_ssbo.vert.spv", meshVertShader)) {
                 System.out.println("Error when building the mesh vertex shader module");
+                }
             }
         }
 
@@ -913,7 +920,9 @@ public class VulkanEngine {
         final Texture lostEmpire = new Texture();
 
         if(!VkUtil.load_image_from_file(this, "../../assets/lost_empire-RGBA.png", lostEmpire.image)) {
-            VkUtil.load_image_from_file(this, "vk-bootstrap/src/vulkanguide/assets/lost_empire-RGBA.png", lostEmpire.image);
+            if (!VkUtil.load_image_from_file(this, "vk-bootstrap/src/vulkanguide/assets/lost_empire-RGBA.png", lostEmpire.image)) {
+            		VkUtil.load_image_from_file(this, "src/vulkanguide/assets/lost_empire-RGBA.png", lostEmpire.image);
+            }
         }
 
         VkImageViewCreateInfo imageinfo = VkInit.imageview_create_info(VK_FORMAT_R8G8B8A8_SRGB, lostEmpire.image[0]._image, VK_IMAGE_ASPECT_COLOR_BIT);

@@ -15,6 +15,12 @@ public class Error {
     public Error() {
         // do nothing
     }
+    
+    public Error(Error other) {
+    		type.copyFrom(other.type);
+    		vk_result = other.vk_result;
+    		detailed_failure_reasons.addAll(other.detailed_failure_reasons);
+    }
 
     public Error(error_code error_code) {
         type = error_code;
@@ -29,5 +35,11 @@ public class Error {
         type = error_code;
         vk_result = result;
         detailed_failure_reasons.addAll(detailed_failure_reasons);
+	}
+
+	public void copyFrom(Error other) {
+		type.copyFrom(other.type);
+		vk_result = other.vk_result;
+		detailed_failure_reasons.addAll(other.detailed_failure_reasons);
 	}
 }

@@ -75,7 +75,7 @@ public class Triangle {
 
         init.surface = Common.create_surface_glfw (init.instance.instance[0], init.window);
 
-        final VkbPhysicalDeviceSelector phys_device_selector = new VkbPhysicalDeviceSelector(init.instance, 0);
+        final VkbPhysicalDeviceSelector phys_device_selector = new VkbPhysicalDeviceSelector(init.instance);
         var phys_device_ret = phys_device_selector.set_surface (init.surface).select ();
         if (phys_device_ret.not()) {
             System.out.println( phys_device_ret.error ().message () );

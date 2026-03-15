@@ -2,6 +2,14 @@ package port;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
+import org.lwjgl.system.Struct;
+import org.lwjgl.vulkan.VkBaseOutStructure;
+import org.lwjgl.vulkan.VkPhysicalDevice16BitStorageFeatures;
+import org.lwjgl.vulkan.VkPhysicalDeviceFeatures2;
+import org.lwjgl.vulkan.VkPhysicalDeviceVulkan11Features;
+import org.lwjgl.vulkan.VkPhysicalDeviceVulkan12Features;
+
+import sun.misc.Unsafe;
 import vulkanguide.Vertex;
 
 import java.nio.*;
@@ -129,4 +137,114 @@ public class Port {
 
         throw new UnsupportedOperationException("LWJGL requires sun.misc.Unsafe to be available.");
     }
+
+	public static void memcpy(List<Byte> _Dst, int starting_location, Struct<?> _Src, int _Size) {
+		long address = _Src.address();
+		Unsafe unsafe = Unsafe.getUnsafe();
+		
+		for (int i=0; i < _Size; i++) {
+			_Dst.set(i + starting_location, (byte)unsafe.getByte(address + i));
+		}
+		
+	}
+
+	public static String toString(ByteBuffer buffer) {
+		int size = buffer.limit();
+		StringBuilder builder = new StringBuilder();
+		for ( int i=0; i < size; i++) {
+			byte b = buffer.get();
+			if (b == 0) {
+				break;
+			}
+			builder.append((char)b);
+		}
+		return builder.toString();
+	}
+
+	public static String to_string(int code) {
+		return Integer.toString(code);
+	}
+
+	public static boolean binary_search(List<String> collection, String value) {
+		return collection.contains(value);
+	}
+
+	public static long toLong(List<Byte> bytes) {
+		int sizeBytes = bytes.size();
+		Unsafe unsafe = Unsafe.getUnsafe();
+		long address = unsafe.allocateMemory(sizeBytes);
+		for (int i=0; i< sizeBytes; i++) {
+			unsafe.putByte(address, bytes.get(i));
+		}
+		return address;
+	}
+
+	public static int toInt(List<Byte> buffer, int starting_location) {
+		byte[] array = new byte[buffer.size()];
+		for (int i=0; i < buffer.size(); i++) {
+			array[i] = buffer.get(i);
+		}
+		int intValue = ByteBuffer.allocate(buffer.size()).put(array).getInt(starting_location);
+		return intValue;
+	}
+
+	public static int sType(Struct<?> struct) {
+		if (struct instanceof VkPhysicalDeviceVulkan11Features) {
+			return ((VkPhysicalDeviceVulkan11Features)struct).sType();
+		}
+		if (struct instanceof VkPhysicalDeviceVulkan12Features) {
+			return ((VkPhysicalDeviceVulkan12Features)struct).sType();
+		}
+		if (struct instanceof VkPhysicalDeviceFeatures2) {
+			return ((VkPhysicalDeviceFeatures2)struct).sType();
+		}
+		throw new RuntimeException();
+	}
+
+	public static void memcpy(VkBaseOutStructure structure, Struct<?> struct, int sizeof) {
+        int typeValue =  Port.sType(struct);
+        structure.sType(typeValue);  
+	}
+
+	public static void memcpy(VkBaseOutStructure structure, VkBaseOutStructure struct, int sizeof) {		
+		structure.set(struct);
+	}
+
+	public static void memcpy(Struct<?> struct, VkBaseOutStructure structure, int sizeof) {
+		if (struct instanceof VkPhysicalDeviceVulkan11Features) {
+			VkPhysicalDeviceVulkan11Features s1 = (VkPhysicalDeviceVulkan11Features)struct;
+			s1.sType(structure.sType());
+			s1.pNext(structure.pNext() == null ? 0 : structure.pNext().address());
+			return;
+		}		
+		if (struct instanceof VkPhysicalDeviceVulkan12Features) {
+			VkPhysicalDeviceVulkan12Features s1 = (VkPhysicalDeviceVulkan12Features)struct;
+			s1.sType(structure.sType());
+			s1.pNext(structure.pNext() == null ? 0 : structure.pNext().address());
+			return;
+		}
+		if (struct instanceof VkPhysicalDeviceFeatures2) {
+			VkPhysicalDeviceFeatures2 s1 = (VkPhysicalDeviceFeatures2)struct;
+			s1.sType(structure.sType());
+			s1.pNext(structure.pNext() == null ? 0 : structure.pNext().address());
+			return;
+		}
+		throw new RuntimeException();
+	}
+
+	public static Struct<?> copyStruct(Struct<?> struct) {
+		if (struct instanceof VkPhysicalDeviceVulkan11Features) {
+			VkPhysicalDeviceVulkan11Features s1 = (VkPhysicalDeviceVulkan11Features)struct;
+			VkPhysicalDeviceVulkan11Features retVal =  VkPhysicalDeviceVulkan11Features.create();
+			retVal.set(s1);
+			return retVal;
+		}
+		if (struct instanceof VkPhysicalDeviceVulkan12Features) {
+			VkPhysicalDeviceVulkan12Features s1 = (VkPhysicalDeviceVulkan12Features)struct;
+			VkPhysicalDeviceVulkan12Features retVal =  VkPhysicalDeviceVulkan12Features.create();
+			retVal.set(s1);
+			return retVal;
+		}
+		throw new RuntimeException();
+	}
 }

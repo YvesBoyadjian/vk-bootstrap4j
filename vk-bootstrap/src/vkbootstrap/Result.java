@@ -16,6 +16,10 @@ public class Result<T extends Object> {
         m_value = value;
         m_init = true;
     }
+    
+    public Result(Error error) {
+    		m_error.copyFrom(error);
+    }
 
     public Result(error_code error_code) {
         this(error_code,VK_SUCCESS);
@@ -35,6 +39,8 @@ public class Result<T extends Object> {
     public error_code error() { assert (!m_init); return m_error.type; }
     // optional VkResult that could of been produced due to the error
     public /*VkResult*/int vk_result() { assert (!m_init); return m_error.vk_result; }
+    // Returns the struct that holds the std::error_code and VkResult
+    public Error full_error() { return new Error(m_error); }
 
     public boolean not() {
         return !m_init;

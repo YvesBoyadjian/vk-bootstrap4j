@@ -2,6 +2,7 @@ package vkbootstrap;
 
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.NativeType;
+import org.lwjgl.system.Struct;
 import org.lwjgl.vulkan.*;
 import port.Port;
 import port.error_code;
@@ -218,6 +219,23 @@ public class VkBootstrap {
         return rl;
     }
 
+    public static String to_string_device_type(final /*VkPhysicalDeviceType*/int type) {
+    switch (type) {
+        case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+            return "other";
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+            return "integrated";
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+            return "discrete";
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+            return "virtual_gpu";
+        case VK_PHYSICAL_DEVICE_TYPE_CPU:
+            return "cpu";
+        default:
+            return "unknown";
+    }
+}
+
     /*270*/ /*VkResult*/public static int create_debug_utils_messenger(VkInstance instance,
                                           VkDebugUtilsMessengerCallbackEXT debug_callback,
                                           /*VkDebugUtilsMessageSeverityFlagsEXT*/int severity,
@@ -337,15 +355,38 @@ public class VkBootstrap {
         structure.pNext(structs.get(0).address());
     }
 
-    //template <typename T>
-    /*360 */public static <T extends VkDeviceCreateInfo> void setup_pNext_chain(T structure, final List<VkBaseOutStructure> structs) {
-        structure.pNext(0);
-        if (structs.size() <= 0) return;
-        for (int i = 0; i < structs.size() - 1; i++) {
-            structs.get(i).pNext(structs.get(i + 1));
-        }
-        structure.pNext(structs.get(0).address());
+    public static <T extends VkDeviceCreateInfo> void setup_pNext_chain(T structure, final List<Struct<?>> structs) {
+    structure.pNext(0);
+    if (structs.isEmpty()) return;
+    for (int i = 0; i < structs.size() - 1; i++) {
+        VkBaseOutStructure out_structure = VkBaseOutStructure.create();
+        Port.memcpy(out_structure, structs.get(i), VkBaseOutStructure.SIZEOF);
+//#if !defined(NDEBUG)
+//        assert(out_structure.sType != VK_STRUCTURE_TYPE_APPLICATION_INFO);
+//#endif
+        VkBaseOutStructure cast = VkBaseOutStructure.createSafe(structs.get(i + 1).address());
+        out_structure.pNext(cast);
+        Port.memcpy(structs.get(i), out_structure, VkBaseOutStructure.SIZEOF);
     }
+    VkBaseOutStructure out_structure = VkBaseOutStructure.create();
+    Port.memcpy(out_structure, structs.get(structs.size() - 1), VkBaseOutStructure.SIZEOF);
+    out_structure.pNext(null);
+//#if !defined(NDEBUG)
+//    assert(out_structure.sType != VK_STRUCTURE_TYPE_APPLICATION_INFO);
+//#endif
+    Port.memcpy(structs.get(structs.size() - 1), out_structure, VkBaseOutStructure.SIZEOF);
+    structure.pNext(structs.get(0).address());
+}
+
+    //template <typename T>
+//    /*360 */public static <T extends VkDeviceCreateInfo> void setup_pNext_chain(T structure, final List<VkBaseOutStructure> structs) {
+//        structure.pNext(0);
+//        if (structs.size() <= 0) return;
+//        for (int i = 0; i < structs.size() - 1; i++) {
+//            structs.get(i).pNext(structs.get(i + 1));
+//        }
+//        structure.pNext(structs.get(0).address());
+//    }
 
     //template <typename T>
     /*360*/ public static <T extends VkSwapchainCreateInfoKHR> void setup_pNext_chain(T structure, final List<VkBaseOutStructure> structs) {

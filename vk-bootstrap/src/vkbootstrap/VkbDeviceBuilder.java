@@ -1,5 +1,6 @@
 package vkbootstrap;
 
+import org.lwjgl.system.Struct;
 import org.lwjgl.vulkan.*;
 import port.Port;
 import port.error_code;
@@ -55,44 +56,53 @@ public class VkbDeviceBuilder {
             index++;
         }
 
-        final List<String> extensions = new ArrayList<>(); extensions.addAll(physical_device.extensions_to_enable);
+        final List<String> extensions_to_enable = new ArrayList<>(); extensions_to_enable.addAll(physical_device.extensions_to_enable);
         if (physical_device.surface != VK_NULL_HANDLE || physical_device.defer_surface_initialization)
-            extensions.add( VK_KHR_SWAPCHAIN_EXTENSION_NAME );
+            extensions_to_enable.add( VK_KHR_SWAPCHAIN_EXTENSION_NAME );
 
-        boolean has_phys_dev_features_2 = false;
+        final List<Struct<?>> final_pnext_chain = new ArrayList<>();
+        VkDeviceCreateInfo device_create_info = VkDeviceCreateInfo.create();
+
         boolean user_defined_phys_dev_features_2 = false;
-        final List<VkBaseOutStructure> final_pnext_chain = new ArrayList<>();
-        final VkDeviceCreateInfo device_create_info = VkDeviceCreateInfo.create();
-
-//#if defined(VK_API_VERSION_1_1)
         for (var pnext : info.pNext_chain) {
-            if (pnext.sType() == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2) {
+            VkBaseOutStructure out_structure = VkBaseOutStructure.create();
+            Port.memcpy(out_structure, pnext, VkBaseOutStructure.SIZEOF);
+            if (out_structure.sType() == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2) {
                 user_defined_phys_dev_features_2 = true;
                 break;
             }
         }
 
-        List<VkbGenericFeaturesPNextNode> physical_device_extension_features_copy = new ArrayList<>();physical_device_extension_features_copy.addAll(physical_device.extended_features_chain);
+        if (user_defined_phys_dev_features_2 && !physical_device.extended_features_chain.empty()) {
+            return new Result<>(new error_code(VkbDeviceError.VkPhysicalDeviceFeatures2_in_pNext_chain_while_using_add_required_extension_features.ordinal()) );
+        }
+        
+        // These objects must be alive during the call to vkCreateDevice
+        var physical_device_extension_features_copy = new VkbFeaturesChain(physical_device.extended_features_chain);
         final VkPhysicalDeviceFeatures2 local_features2 = VkPhysicalDeviceFeatures2.create();
         local_features2.sType( VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
+        local_features2.features( physical_device.features);
 
         if (!user_defined_phys_dev_features_2) {
-            if (physical_device.instance_version >= VK_MAKE_VERSION(1, 1, 0)) {
-                local_features2.features( physical_device.features);
-                final_pnext_chain.add(VkBaseOutStructure.createSafe(local_features2.address()));
-                has_phys_dev_features_2 = true;
-                for (var features_node : physical_device_extension_features_copy) {
-/*1436*/                    final_pnext_chain.add(VkBaseOutStructure.createSafe(features_node.address()));
+            if (physical_device.instance_version >= VK_MAKE_VERSION(1, 1, 0) || physical_device.properties2_ext_enabled) {
+                final_pnext_chain.add(local_features2);
+
+                var features_chain_members = physical_device_extension_features_copy.get_pNext_chain_members();
+                for (var features_struct : features_chain_members) {
+                    final_pnext_chain.add(features_struct);
                 }
+                
+//                has_phys_dev_features_2 = true;
+//                for (var features_node : physical_device_extension_features_copy) {
+///*1436*/                    final_pnext_chain.add(VkBaseOutStructure.createSafe(features_node.address()));
+//                }
             }
         } else {
+            device_create_info.pEnabledFeatures( physical_device.features);
             System.out.print("User provided VkPhysicalDeviceFeatures2 instance found in pNext chain. All "+
                     "requirements added via 'add_required_extension_features' will be ignored.");
         }
 
-        if (!user_defined_phys_dev_features_2 && !has_phys_dev_features_2) {
-            device_create_info.pEnabledFeatures( physical_device.features);
-        }
 //#endif
 
         for (var pnext : info.pNext_chain) {
@@ -100,16 +110,13 @@ public class VkbDeviceBuilder {
         }
 
         VkBootstrap.setup_pNext_chain(device_create_info, final_pnext_chain);
-        for (var node : final_pnext_chain) {
-            assert(node.sType() != VK_STRUCTURE_TYPE_APPLICATION_INFO);
-        }
 
         device_create_info.sType( VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO);
         device_create_info.flags( info.flags);
         //device_create_info.queueCreateInfoCount( (int)(queueCreateInfos.size())); java port
         device_create_info.pQueueCreateInfos(queueCreateInfos);
         //device_create_info.enabledExtensionCount( (int)(extensions.size())); java port
-        device_create_info.ppEnabledExtensionNames( Port.datastr(extensions));
+        device_create_info.ppEnabledExtensionNames( Port.datastr(extensions_to_enable));
 
         final VkbDevice device = new VkbDevice();
 

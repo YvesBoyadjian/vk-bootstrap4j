@@ -6,6 +6,8 @@ import org.lwjgl.system.NativeType;
 import org.lwjgl.system.Struct;
 import org.lwjgl.vulkan.VkBaseOutStructure;
 
+import sun.misc.Unsafe;
+
 import java.nio.ByteBuffer;
 
 import static org.lwjgl.system.MemoryUtil.*;
@@ -95,15 +97,15 @@ public class VkbGenericFeaturesPNextNode extends Struct implements NativeResourc
     }
 
     public static int nsType(long struct) {
-        return UNSAFE.getInt((Object)null, struct + (long)STYPE);
+        return  Unsafe.getUnsafe()/*UNSAFE*/.getInt((Object)null, struct + (long)STYPE);
     }
 
     public static int nsFields(long struct,int i) {
-        return UNSAFE.getInt((Object)null, struct + (long)FIELDS+4*i);
+        return Unsafe.getUnsafe()/*UNSAFE*/.getInt((Object)null, struct + (long)FIELDS+4*i);
     }
 
     public static void nsFields(long struct,int i, int value) {
-        UNSAFE.putInt((Object)null, struct + (long)FIELDS+4*i, value);
+    		Unsafe.getUnsafe()/*UNSAFE*/.putInt((Object)null, struct + (long)FIELDS+4*i, value);
     }
 
     public static boolean match(
