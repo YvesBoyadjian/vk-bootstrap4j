@@ -500,4 +500,36 @@ public class VkbVulkanFunctions {
         };
         instance_functions_initialized = true;
     }
+
+
+    void get_device_proc_addr(VkDevice device, Object[] out_ptr, String func_name) {
+        //out_ptr[0] = fp_vkGetDeviceProcAddr(device, func_name);
+    		switch(func_name) {
+    		case  "vkGetDeviceQueue":
+    			out_ptr[0] = new VkbVulkanFunctions.PFN_vkGetDeviceQueue () {
+
+					@Override
+					public void invoke(VkDevice device, int queueFamilyIndex, int queueIndex, VkQueue[] pQueue) {
+		                PointerBuffer pb = memAllocPointer(1);
+						VK11.vkGetDeviceQueue(device, queueFamilyIndex, queueIndex, null);
+		                pQueue[0] = new VkQueue(pb.get(0),device);
+		                memFree(pb);
+					}
+    				
+    			};
+    			break;
+    		case "vkDestroyDevice":
+    			out_ptr[0] = new VkbVulkanFunctions.PFN_vkDestroyDevice() {
+
+					@Override
+					public void invoke(VkDevice device, VkAllocationCallbacks pAllocator) {
+						VK11.vkDestroyDevice(device, pAllocator);
+					}
+    				
+    			};
+    			break;
+    			default:
+    				throw new RuntimeException();
+    		}
+    }
 }

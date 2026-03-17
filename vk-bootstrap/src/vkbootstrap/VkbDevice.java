@@ -18,6 +18,15 @@ public class VkbDevice {
     public /*VkSurfaceKHR*/long surface = VK_NULL_HANDLE;
     public final List<VkQueueFamilyProperties> queue_families = new ArrayList<>();
     public final VkAllocationCallbacks[] allocation_callbacks = new VkAllocationCallbacks[1];//VK_NULL_HANDLE;
+    VkbVulkanFunctions.PFN_vkGetDeviceProcAddr fp_vkGetDeviceProcAddr = null;
+    int instance_version = Version.VKB_VK_API_VERSION_1_0;
+    
+    class IT {
+    		final VkbVulkanFunctions.PFN_vkGetDeviceQueue[] fp_vkGetDeviceQueue = new VkbVulkanFunctions.PFN_vkGetDeviceQueue[1];
+    		final VkbVulkanFunctions.PFN_vkDestroyDevice[] fp_vkDestroyDevice = new VkbVulkanFunctions.PFN_vkDestroyDevice[1];
+    }
+    
+    final IT internal_table = new IT();
 
     /*1310*/ public Result<Integer> get_queue_index(VkbQueueType type) {
         int index = QUEUE_INDEX_MAX_VALUE;
@@ -65,4 +74,9 @@ public class VkbDevice {
 		queue_families.clear(); queue_families.addAll(other.queue_families);
 		allocation_callbacks[0] = other.allocation_callbacks[0];
 	}
+
+
+	// ---- Dispatch ---- //
+
+	public VkbDispatchTable make_table() { return new VkbDispatchTable( device[0], fp_vkGetDeviceProcAddr ); }
 }

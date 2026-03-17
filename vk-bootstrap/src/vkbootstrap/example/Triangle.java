@@ -91,6 +91,8 @@ public class Triangle {
         }
         init.device.copyFrom(device_ret.value ());
         init.vk_lib.init(init.device.device[0]);
+        
+        init.disp.copyFrom(init.device.make_table());
 
         return 0;
     }

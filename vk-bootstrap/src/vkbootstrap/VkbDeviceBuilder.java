@@ -130,6 +130,10 @@ public class VkbDeviceBuilder {
         device.surface = physical_device.surface;
         device.queue_families.clear(); device.queue_families.addAll(physical_device.queue_families);
         device.allocation_callbacks[0] = info.allocation_callbacks;
+        device.fp_vkGetDeviceProcAddr = VkBootstrap.vulkan_functions().fp_vkGetDeviceProcAddr;
+        VkBootstrap.vulkan_functions().get_device_proc_addr(device.device[0], device.internal_table.fp_vkGetDeviceQueue, "vkGetDeviceQueue");
+        VkBootstrap.vulkan_functions().get_device_proc_addr(device.device[0], device.internal_table.fp_vkDestroyDevice, "vkDestroyDevice");
+        device.instance_version = physical_device.instance_version;
         return new Result(device);
     }
 }
