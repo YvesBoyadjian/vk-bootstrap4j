@@ -528,6 +528,43 @@ public class VkbVulkanFunctions {
     				
     			};
     			break;
+    		case "vkGetSwapchainImagesKHR":
+    			out_ptr[0] = new VkbVulkanFunctions.PFN_vkGetSwapchainImagesKHR() {
+					
+					@Override
+					public int invoke(VkDevice device, long swapchain, int[] pSwapchainImageCount, long[] pSwapchainImages) {
+		                return KHRSwapchain.vkGetSwapchainImagesKHR(device,swapchain,pSwapchainImageCount,pSwapchainImages);
+					}
+				};
+    			break;
+    		case "vkCreateImageView":
+    			out_ptr[0] = new VkbVulkanFunctions.PFN_vkCreateImageView() {
+					
+					@Override
+					public int invoke(VkDevice device, VkImageViewCreateInfo pCreateInfo, VkAllocationCallbacks pAllocator,
+							long[] pView) {
+						return VK10.vkCreateImageView(device,pCreateInfo,pAllocator,pView);
+					}
+				};
+    			break;
+    		case "vkDestroyImageView":
+    			out_ptr[0] = new VkbVulkanFunctions.PFN_vkDestroyImageView() {
+					
+					@Override
+					public void invoke(VkDevice device, long imageView, VkAllocationCallbacks pAllocator) {
+						VK10.vkDestroyImageView(device,imageView,pAllocator);
+					}
+				};
+    			break;
+    		case "vkDestroySwapchainKHR":
+    			out_ptr[0] = new VkbVulkanFunctions.PFN_vkDestroySwapchainKHR() {
+					
+					@Override
+					public void invoke(VkDevice device, long swapchain, VkAllocationCallbacks pAllocator) {
+		                KHRSwapchain.vkDestroySwapchainKHR(device,swapchain,pAllocator);
+					}
+				};
+    			break;
     			default:
     				throw new RuntimeException();
     		}

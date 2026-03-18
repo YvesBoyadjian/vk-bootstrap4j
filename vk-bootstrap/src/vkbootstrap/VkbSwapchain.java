@@ -17,7 +17,27 @@ public class VkbSwapchain {
     public /*VkColorSpaceKHR*/int color_space = KHRSurface.VK_COLOR_SPACE_SRGB_NONLINEAR_KHR; // The color space actually used when creating the swapchain.
     public /*VkImageUsageFlags*/int image_usage_flags = 0;
     public final VkExtent2D extent = VkExtent2D.create();
+    // The value of minImageCount actually used when creating the swapchain; note that the presentation engine is always free to create more images than that.
+    public int requested_min_image_count = 0;
+    public /*VkPresentModeKHR*/int present_mode = KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR; // The present mode actually used when creating the swapchain.
+    public int instance_version = Version.VKB_VK_API_VERSION_1_0;
     VkAllocationCallbacks allocation_callbacks = null;//VK_NULL_HANDLE;
+    
+    class IT {
+    		public final VkbVulkanFunctions.PFN_vkGetSwapchainImagesKHR[] fp_vkGetSwapchainImagesKHR = new VkbVulkanFunctions.PFN_vkGetSwapchainImagesKHR[1];
+    		public final VkbVulkanFunctions.PFN_vkCreateImageView[] fp_vkCreateImageView = new VkbVulkanFunctions.PFN_vkCreateImageView[1];
+    		public final VkbVulkanFunctions.PFN_vkDestroyImageView[] fp_vkDestroyImageView = new VkbVulkanFunctions.PFN_vkDestroyImageView[1];
+    		public final VkbVulkanFunctions.PFN_vkDestroySwapchainKHR[] fp_vkDestroySwapchainKHR = new VkbVulkanFunctions.PFN_vkDestroySwapchainKHR[1];
+    		
+			public void copyFrom(IT other) {
+				fp_vkGetSwapchainImagesKHR[0] = other.fp_vkGetSwapchainImagesKHR[0];
+				fp_vkCreateImageView[0] = other.fp_vkCreateImageView[0];
+				fp_vkDestroyImageView[0] = other.fp_vkDestroyImageView[0];
+				fp_vkDestroySwapchainKHR[0] = other.fp_vkDestroySwapchainKHR[0];
+			}
+    }
+    
+    public final IT internal_table = new IT();
 
     /*1741*/
     public Result<List</*VkImage*/Long>> get_images() {
@@ -80,8 +100,14 @@ public class VkbSwapchain {
 		swapchain[0] = other.swapchain[0];
 		image_count = other.image_count;
 		image_format = other.image_format;
+		color_space = other.color_space;
+		image_usage_flags = other.image_usage_flags;
 		extent.width(other.extent.width());
 		extent.height(other.extent.height());
+		requested_min_image_count = other.requested_min_image_count;
+		present_mode = other.present_mode;
+		instance_version = other.instance_version;
 		allocation_callbacks = other.allocation_callbacks;
+		internal_table.copyFrom(other.internal_table);
 	}
 }

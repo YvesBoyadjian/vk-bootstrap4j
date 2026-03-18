@@ -24,6 +24,7 @@ public class VkbSwapchainBuilder {
         public /*VkSwapchainCreateFlagBitsKHR*/int create_flags = (/*VkSwapchainCreateFlagBitsKHR*/int)(0);
         public /*VkSurfaceKHR*/ long surface = VK_NULL_HANDLE;
         public final List<VkSurfaceFormatKHR> desired_formats = new ArrayList<>();
+        public int instance_version = Version.VKB_VK_API_VERSION_1_0;
         public int desired_width = 256;
         public int desired_height = 256;
         public int array_layer_count = 1;
@@ -185,11 +186,20 @@ public class VkbSwapchainBuilder {
         swapchain.color_space = surface_format.colorSpace();
         swapchain.image_usage_flags = info.image_usage_flags;
         swapchain.extent.set(extent);
+        VkBootstrap.vulkan_functions().get_device_proc_addr(
+                info.device, swapchain.internal_table.fp_vkGetSwapchainImagesKHR, "vkGetSwapchainImagesKHR");
+        VkBootstrap.vulkan_functions().get_device_proc_addr(info.device, swapchain.internal_table.fp_vkCreateImageView, "vkCreateImageView");
+        VkBootstrap.vulkan_functions().get_device_proc_addr(info.device, swapchain.internal_table.fp_vkDestroyImageView, "vkDestroyImageView");
+        VkBootstrap.vulkan_functions().get_device_proc_addr(
+                info.device, swapchain.internal_table.fp_vkDestroySwapchainKHR, "vkDestroySwapchainKHR");
         var images = swapchain.get_images();
         if (images.not()) {
             return new Result(new Error( new error_code(VkbSwapchainError.failed_get_swapchain_images.ordinal() )));
         }
+        swapchain.requested_min_image_count = image_count;
+        swapchain.present_mode = present_mode;
         swapchain.image_count = (int)(images.value().size());
+        swapchain.instance_version = info.instance_version;
         swapchain.allocation_callbacks = info.allocation_callbacks;
         return new Result(swapchain);
     }
