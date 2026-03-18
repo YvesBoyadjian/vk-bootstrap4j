@@ -401,10 +401,17 @@ public class VkBootstrap {
     /*368*/ public static final String validation_layer_name = "VK_LAYER_KHRONOS_validation";
 
     static final InstanceErrorCategory instance_error_category = new InstanceErrorCategory();
+    
+    static final SwapchainErrorCategory swapchain_error_category = new SwapchainErrorCategory();
 
     /*408*/ public static error_code make_error_code(VkbInstanceError instance_error) {
         return new error_code( instance_error.ordinal(), instance_error_category );
     }
+    
+    public static error_code make_error_code(VkbSwapchainError swapchain_error) {
+        return new error_code(swapchain_error.ordinal(), swapchain_error_category );
+    }
+    
 
     /*424*/ public static String to_string(VkbInstanceError err) {
         switch (err) {
@@ -430,6 +437,25 @@ public class VkBootstrap {
                 return "";
         }
     }
+
+	public static String to_string(VkbSwapchainError err) {
+		switch(err) {
+		case failed_create_swapchain:
+			return "failed_create_swapchain";
+		case failed_create_swapchain_image_views:
+			return "failed_create_swapchain_image_views";
+		case failed_get_swapchain_images:
+			return "failed_get_swapchain_images";
+		case failed_query_surface_support_details:
+			return "failed_query_surface_support_details";
+		case required_min_image_count_too_low:
+			return "required_min_image_count_too_low";
+		case surface_handle_not_provided:
+			return "required_min_image_count_too_low";
+		default:
+			return "";
+		}
+	}
 
     // Sentinel value, used in implementation only
     public static final int QUEUE_INDEX_MAX_VALUE = 65536;
@@ -665,6 +691,32 @@ public class VkBootstrap {
         // use the first available one if any desired formats aren't found
         return available_formats.get(0);
     }
+    
+
+    public static Result<VkSurfaceFormatKHR> find_desired_surface_format(
+    final List<VkSurfaceFormatKHR> available_formats, final List<VkSurfaceFormatKHR> desired_formats) {
+    for (var desired_format : desired_formats) {
+        for (var available_format : available_formats) {
+            // finds the first format that is desired and available
+            if (desired_format.format() == available_format.format() && desired_format.colorSpace() == available_format.colorSpace()) {
+                return new Result<>(desired_format);
+            }
+        }
+    }
+
+    // if no desired format is available, we report that no format is suitable to the user request
+    return new Result( make_error_code(VkbSurfaceSupportError.no_suitable_desired_format) );
+}
+
+    public static VkSurfaceFormatKHR find_best_surface_format(
+    final List<VkSurfaceFormatKHR> available_formats, final List<VkSurfaceFormatKHR> desired_formats) {
+    var surface_format_ret = find_desired_surface_format(available_formats, desired_formats);
+    if (surface_format_ret.has_value()) return surface_format_ret.value();
+
+    // use the first available format as a fallback if any desired formats aren't found
+    return available_formats.get(0);
+}
+    
 
     /*1574*/ public static /*VkPresentModeKHR*/int find_present_mode(final List</*VkPresentModeKHR*/Integer> available_resent_modes,
                                        final List</*VkPresentModeKHR*/Integer> desired_present_modes) {
