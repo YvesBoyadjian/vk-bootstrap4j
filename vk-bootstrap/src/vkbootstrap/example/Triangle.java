@@ -464,7 +464,7 @@ public class Triangle {
 
     static int create_sync_objects (final Init init, final RenderData data) {
         data.available_semaphores.clear(); for(int i=0;i<MAX_FRAMES_IN_FLIGHT;i++) data.available_semaphores.add(new long[1]);//resize (MAX_FRAMES_IN_FLIGHT);
-        data.finished_semaphore.clear(); for(int i=0;i<MAX_FRAMES_IN_FLIGHT;i++) data.finished_semaphore.add(new long[1]);//resize (MAX_FRAMES_IN_FLIGHT);
+        data.finished_semaphore.clear(); for(int i=0;i<init.swapchain.image_count;i++) data.finished_semaphore.add(new long[1]);//resize (MAX_FRAMES_IN_FLIGHT);
         data.in_flight_fences.clear(); for(int i=0;i<MAX_FRAMES_IN_FLIGHT;i++) data.in_flight_fences.add(new long[1]);//resize (MAX_FRAMES_IN_FLIGHT);
         data.image_in_flight.clear(); for(int i=0;i<init.swapchain.image_count;i++) data.image_in_flight.add(new long[1]);//resize (init.swapchain.image_count, VK_NULL_HANDLE);
 
@@ -475,14 +475,29 @@ public class Triangle {
         fence_info.sType( VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
         fence_info.flags( VK_FENCE_CREATE_SIGNALED_BIT);
 
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            if (init.arrow_operator().vkCreateSemaphore.invoke (init.device.device[0], semaphore_info, null, data.available_semaphores.get(i)) != VK_SUCCESS ||
-                    init.arrow_operator().vkCreateSemaphore.invoke (init.device.device[0], semaphore_info, null, data.finished_semaphore.get(i)) != VK_SUCCESS ||
-                    init.arrow_operator().vkCreateFence.invoke (init.device.device[0], fence_info, null, data.in_flight_fences.get(i)) != VK_SUCCESS) {
-                System.out.println( "failed to create sync objects");
+        for (int i = 0; i < init.swapchain.image_count; i++) {
+            if (/*init.disp.*/init.arrow_operator().vkCreateSemaphore.invoke(init.device.device[0], semaphore_info, null, data.finished_semaphore.get(i)) != VK_SUCCESS) {
+                System.out.println("failed to create sync objects\n");
                 return -1; // failed to create synchronization objects for a frame
             }
         }
+
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            if (/*init.disp.*/init.arrow_operator().vkCreateSemaphore.invoke(init.device.device[0], semaphore_info, null, data.available_semaphores.get(i)) != VK_SUCCESS ||
+                /*init.disp.*/init.arrow_operator().vkCreateFence.invoke(init.device.device[0], fence_info, null, data.in_flight_fences.get(i)) != VK_SUCCESS) {
+                System.out.println("failed to create sync objects\n");
+                return -1; // failed to create synchronization objects for a frame
+            }
+        }
+
+//        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+//            if (init.arrow_operator().vkCreateSemaphore.invoke (init.device.device[0], semaphore_info, null, data.available_semaphores.get(i)) != VK_SUCCESS ||
+//                    init.arrow_operator().vkCreateSemaphore.invoke (init.device.device[0], semaphore_info, null, data.finished_semaphore.get(i)) != VK_SUCCESS ||
+//                    init.arrow_operator().vkCreateFence.invoke (init.device.device[0], fence_info, null, data.in_flight_fences.get(i)) != VK_SUCCESS) {
+//                System.out.println( "failed to create sync objects");
+//                return -1; // failed to create synchronization objects for a frame
+//            }
+//        }
         return 0;
     }
 
