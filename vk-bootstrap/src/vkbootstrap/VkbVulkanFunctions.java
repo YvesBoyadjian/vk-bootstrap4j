@@ -332,7 +332,7 @@ public class VkbVulkanFunctions {
         fp_vkGetPhysicalDeviceFeatures2KHR = new PFN_vkGetPhysicalDeviceFeatures2KHR() {
 			@Override
 			public void invoke(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures2 pFeatures) {
-				VK11.vkGetPhysicalDeviceFeatures2(physicalDevice, pFeatures);
+				KHRGetPhysicalDeviceProperties2.vkGetPhysicalDeviceFeatures2KHR(physicalDevice, pFeatures);
 			}        	
         };
         
