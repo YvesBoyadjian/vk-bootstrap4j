@@ -24,6 +24,11 @@ public class VkbDevice {
     class IT {
     		final VkbVulkanFunctions.PFN_vkGetDeviceQueue[] fp_vkGetDeviceQueue = new VkbVulkanFunctions.PFN_vkGetDeviceQueue[1];
     		final VkbVulkanFunctions.PFN_vkDestroyDevice[] fp_vkDestroyDevice = new VkbVulkanFunctions.PFN_vkDestroyDevice[1];
+    		
+			public void copyFrom(IT other) {
+				fp_vkGetDeviceQueue[0] = other.fp_vkGetDeviceQueue[0];
+				fp_vkDestroyDevice[0] = other.fp_vkDestroyDevice[0];
+			}
     }
     
     final IT internal_table = new IT();
@@ -73,6 +78,9 @@ public class VkbDevice {
 		surface = other.surface;
 		queue_families.clear(); queue_families.addAll(other.queue_families);
 		allocation_callbacks[0] = other.allocation_callbacks[0];
+		fp_vkGetDeviceProcAddr = other.fp_vkGetDeviceProcAddr;
+		instance_version = other.instance_version;
+		internal_table.copyFrom(other.internal_table);
 	}
 
 
